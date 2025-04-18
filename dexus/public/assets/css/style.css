@@ -244,6 +244,18 @@ main {
     margin-top: 0.25rem;
 }
 
+/* Alert container */
+.alert-container {
+    z-index: 9999;
+}
+
+/* Charts */
+.chart-area, .chart-pie {
+    position: relative;
+    height: 20rem;
+    width: 100%;
+}
+
 /* Print styles */
 @media print {
     .sidebar, .navbar, .btn, .no-print {

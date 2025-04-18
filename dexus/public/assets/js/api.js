@@ -1,482 +1,395 @@
 /**
- * Sistema de Gestão Dexus - API
- * Responsável pela comunicação com o backend
+ * Sistema de Gestão Dexus - API JavaScript
+ * Funções para comunicação com o backend
  */
-
-// URL base da API
-const API_BASE_URL = '/dexus-system/api';
 
 /**
- * Realiza uma requisição GET para a API
- * @param {string} endpoint - Endpoint da API
- * @param {Object} params - Parâmetros da requisição (opcional)
- * @returns {Promise} - Promessa com a resposta da requisição
+ * Realiza uma requisição AJAX para a API
+ * @param {string} action - Ação a ser executada
+ * @param {object} data - Dados a serem enviados (opcional)
+ * @param {string} method - Método HTTP (GET, POST, PUT, DELETE)
+ * @return {Promise} - Promessa com o resultado da requisição
  */
-function apiGet(endpoint, params = {}) {
-    // Construir URL com parâmetros
-    const url = new URL(`${API_BASE_URL}/${endpoint}`, window.location.origin);
+function apiRequest(action, data = null, method = 'GET') {
+    // Construir URL base
+    let url = 'api.php?action=' + action;
     
-    // Adicionar parâmetros à URL
-    if (Object.keys(params).length > 0) {
-        Object.keys(params).forEach(key => {
-            if (params[key] !== null && params[key] !== undefined) {
-                url.searchParams.append(key, params[key]);
+    // Configurar opções da requisição
+    const options = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+    
+    // Adicionar dados à requisição
+    if (data !== null) {
+        if (method === 'GET') {
+            // Adicionar parâmetros à URL
+            const params = new URLSearchParams();
+            for (const key in data) {
+                if (data[key] !== null && data[key] !== undefined) {
+                    params.append(key, data[key]);
+                }
             }
-        });
+            url += '&' + params.toString();
+        } else {
+            // Adicionar corpo da requisição
+            options.body = JSON.stringify(data);
+        }
     }
     
-    // Realizar requisição
-    return fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-    });
-}
-
-/**
- * Realiza uma requisição POST para a API
- * @param {string} endpoint - Endpoint da API
- * @param {Object} data - Dados a serem enviados
- * @returns {Promise} - Promessa com a resposta da requisição
- */
-function apiPost(endpoint, data = {}) {
-    return fetch(`${API_BASE_URL}/${endpoint}`, {
-        method: 'POST',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-    });
-}
-
-/**
- * Realiza uma requisição PUT para a API
- * @param {string} endpoint - Endpoint da API
- * @param {Object} data - Dados a serem enviados
- * @returns {Promise} - Promessa com a resposta da requisição
- */
-function apiPut(endpoint, data = {}) {
-    return fetch(`${API_BASE_URL}/${endpoint}`, {
-        method: 'PUT',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-    });
-}
-
-/**
- * Realiza uma requisição DELETE para a API
- * @param {string} endpoint - Endpoint da API
- * @param {Object} params - Parâmetros da requisição (opcional)
- * @returns {Promise} - Promessa com a resposta da requisição
- */
-function apiDelete(endpoint, params = {}) {
-    // Construir URL com parâmetros
-    const url = new URL(`${API_BASE_URL}/${endpoint}`, window.location.origin);
+    // Exibir indicador de carregamento
+    const loader = showLoader();
     
-    // Adicionar parâmetros à URL
-    if (Object.keys(params).length > 0) {
-        Object.keys(params).forEach(key => {
-            if (params[key] !== null && params[key] !== undefined) {
-                url.searchParams.append(key, params[key]);
+    // Realizar requisição
+    return fetch(url, options)
+        .then(response => {
+            // Verificar status da resposta
+            if (!response.ok) {
+                throw new Error('Erro na requisição: ' + response.status);
             }
+            
+            // Parsear resposta como JSON
+            return response.json();
+        })
+        .finally(() => {
+            // Ocultar indicador de carregamento
+            hideLoader(loader);
         });
-    }
-    
-    // Realizar requisição
-    return fetch(url.toString(), {
-        method: 'DELETE',
-        headers: {
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-    });
 }
 
-// === API de Dashboard ===
-
 /**
- * Busca estatísticas para o dashboard
- * @returns {Promise} - Promessa com as estatísticas
+ * Obtém estatísticas para o dashboard
+ * @return {Promise} - Promessa com as estatísticas do dashboard
  */
-function fetchDashboardStats() {
-    return apiGet('dashboard/stats');
+function getDashboardStats() {
+    return apiRequest('dashboard_stats');
 }
 
-// === API de Clientes ===
-
 /**
- * Busca lista de clientes
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de clientes
+ * Obtém as OS recentes
+ * @return {Promise} - Promessa com as OS recentes
  */
-function fetchClientes(params = {}) {
-    return apiGet('clientes', params);
+function getRecentOS() {
+    return apiRequest('recent_os');
 }
 
 /**
- * Busca um cliente específico
+ * Obtém os clientes recentes
+ * @return {Promise} - Promessa com os clientes recentes
+ */
+function getRecentClientes() {
+    return apiRequest('recent_clientes');
+}
+
+// ===================== FUNÇÕES DE CLIENTES =====================
+
+/**
+ * Lista clientes com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de clientes
+ */
+function listarClientes(filtros = {}) {
+    return apiRequest('listar_clientes', filtros);
+}
+
+/**
+ * Obtém dados de um cliente específico
  * @param {number} id - ID do cliente
- * @returns {Promise} - Promessa com os dados do cliente
+ * @return {Promise} - Promessa com os dados do cliente
  */
-function fetchCliente(id) {
-    return apiGet(`clientes/${id}`);
+function obterCliente(id) {
+    return apiRequest('obter_cliente', { id });
 }
 
 /**
- * Cria um novo cliente
- * @param {Object} data - Dados do cliente
- * @returns {Promise} - Promessa com a resposta da criação
+ * Salva (insere/atualiza) um cliente
+ * @param {object} data - Dados do cliente
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function createCliente(data) {
-    return apiPost('clientes', data);
-}
-
-/**
- * Atualiza um cliente existente
- * @param {number} id - ID do cliente
- * @param {Object} data - Dados atualizados do cliente
- * @returns {Promise} - Promessa com a resposta da atualização
- */
-function updateCliente(id, data) {
-    return apiPut(`clientes/${id}`, data);
+function salvarCliente(data) {
+    return apiRequest('salvar_cliente', data, 'POST');
 }
 
 /**
  * Exclui um cliente
  * @param {number} id - ID do cliente
- * @returns {Promise} - Promessa com a resposta da exclusão
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function deleteCliente(id) {
-    return apiDelete(`clientes/${id}`);
+function excluirCliente(id) {
+    return apiRequest('excluir_cliente', { id }, 'DELETE');
 }
 
 /**
- * Verifica se um cliente pode ser excluído
+ * Verifica se um cliente está em uso
  * @param {number} id - ID do cliente
- * @returns {Promise} - Promessa com o resultado da verificação
+ * @return {Promise} - Promessa com o resultado da verificação
  */
-function canDeleteCliente(id) {
-    return apiGet(`clientes/${id}/can-delete`);
+function verificarClienteUso(id) {
+    return apiRequest('verificar_cliente_uso', { id });
+}
+
+// ===================== FUNÇÕES DE SERVIÇOS =====================
+
+/**
+ * Lista serviços com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de serviços
+ */
+function listarServicos(filtros = {}) {
+    return apiRequest('listar_servicos', filtros);
 }
 
 /**
- * Realiza a consulta de dados de CPF/CNPJ
- * @param {string} documento - Número do CPF/CNPJ
- * @param {string} tipo - Tipo de documento (F ou J)
- * @returns {Promise} - Promessa com os dados consultados
- */
-function consultarDocumento(documento, tipo) {
-    return apiGet('consulta/documento', { documento, tipo });
-}
-
-// === API de Serviços ===
-
-/**
- * Busca lista de serviços
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de serviços
- */
-function fetchServicos(params = {}) {
-    return apiGet('servicos', params);
-}
-
-/**
- * Busca um serviço específico
+ * Obtém dados de um serviço específico
  * @param {number} id - ID do serviço
- * @returns {Promise} - Promessa com os dados do serviço
+ * @return {Promise} - Promessa com os dados do serviço
  */
-function fetchServico(id) {
-    return apiGet(`servicos/${id}`);
+function obterServico(id) {
+    return apiRequest('obter_servico', { id });
 }
 
 /**
- * Cria um novo serviço
- * @param {Object} data - Dados do serviço
- * @returns {Promise} - Promessa com a resposta da criação
+ * Salva (insere/atualiza) um serviço
+ * @param {object} data - Dados do serviço
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function createServico(data) {
-    return apiPost('servicos', data);
-}
-
-/**
- * Atualiza um serviço existente
- * @param {number} id - ID do serviço
- * @param {Object} data - Dados atualizados do serviço
- * @returns {Promise} - Promessa com a resposta da atualização
- */
-function updateServico(id, data) {
-    return apiPut(`servicos/${id}`, data);
+function salvarServico(data) {
+    return apiRequest('salvar_servico', data, 'POST');
 }
 
 /**
  * Exclui um serviço
  * @param {number} id - ID do serviço
- * @returns {Promise} - Promessa com a resposta da exclusão
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function deleteServico(id) {
-    return apiDelete(`servicos/${id}`);
+function excluirServico(id) {
+    return apiRequest('excluir_servico', { id }, 'DELETE');
 }
 
 /**
- * Verifica se um serviço pode ser excluído
+ * Verifica se um serviço está em uso
  * @param {number} id - ID do serviço
- * @returns {Promise} - Promessa com o resultado da verificação
+ * @return {Promise} - Promessa com o resultado da verificação
  */
-function canDeleteServico(id) {
-    return apiGet(`servicos/${id}/can-delete`);
+function verificarServicoUso(id) {
+    return apiRequest('verificar_servico_uso', { id });
 }
 
-// === API de Modalidades ===
+// ===================== FUNÇÕES DE MODALIDADES =====================
 
 /**
- * Busca lista de modalidades
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de modalidades
+ * Lista modalidades com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de modalidades
  */
-function fetchModalidades(params = {}) {
-    return apiGet('modalidades', params);
+function listarModalidades(filtros = {}) {
+    return apiRequest('listar_modalidades', filtros);
 }
 
 /**
- * Busca uma modalidade específica
+ * Obtém dados de uma modalidade específica
  * @param {number} id - ID da modalidade
- * @returns {Promise} - Promessa com os dados da modalidade
+ * @return {Promise} - Promessa com os dados da modalidade
  */
-function fetchModalidade(id) {
-    return apiGet(`modalidades/${id}`);
+function obterModalidade(id) {
+    return apiRequest('obter_modalidade', { id });
 }
 
 /**
- * Cria uma nova modalidade
- * @param {Object} data - Dados da modalidade
- * @returns {Promise} - Promessa com a resposta da criação
+ * Salva (insere/atualiza) uma modalidade
+ * @param {object} data - Dados da modalidade
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function createModalidade(data) {
-    return apiPost('modalidades', data);
-}
-
-/**
- * Atualiza uma modalidade existente
- * @param {number} id - ID da modalidade
- * @param {Object} data - Dados atualizados da modalidade
- * @returns {Promise} - Promessa com a resposta da atualização
- */
-function updateModalidade(id, data) {
-    return apiPut(`modalidades/${id}`, data);
+function salvarModalidade(data) {
+    return apiRequest('salvar_modalidade', data, 'POST');
 }
 
 /**
  * Exclui uma modalidade
  * @param {number} id - ID da modalidade
- * @returns {Promise} - Promessa com a resposta da exclusão
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function deleteModalidade(id) {
-    return apiDelete(`modalidades/${id}`);
+function excluirModalidade(id) {
+    return apiRequest('excluir_modalidade', { id }, 'DELETE');
 }
 
 /**
- * Verifica se uma modalidade pode ser excluída
+ * Verifica se uma modalidade está em uso
  * @param {number} id - ID da modalidade
- * @returns {Promise} - Promessa com o resultado da verificação
+ * @return {Promise} - Promessa com o resultado da verificação
  */
-function canDeleteModalidade(id) {
-    return apiGet(`modalidades/${id}/can-delete`);
+function verificarModalidadeUso(id) {
+    return apiRequest('verificar_modalidade_uso', { id });
 }
 
-// === API de Consultores ===
+// ===================== FUNÇÕES DE CONSULTORES =====================
 
 /**
- * Busca lista de consultores
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de consultores
+ * Lista consultores com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de consultores
  */
-function fetchConsultores(params = {}) {
-    return apiGet('consultores', params);
+function listarConsultores(filtros = {}) {
+    return apiRequest('listar_consultores', filtros);
 }
 
 /**
- * Busca um consultor específico
+ * Obtém dados de um consultor específico
  * @param {number} id - ID do consultor
- * @returns {Promise} - Promessa com os dados do consultor
+ * @return {Promise} - Promessa com os dados do consultor
  */
-function fetchConsultor(id) {
-    return apiGet(`consultores/${id}`);
+function obterConsultor(id) {
+    return apiRequest('obter_consultor', { id });
 }
 
 /**
- * Cria um novo consultor
- * @param {Object} data - Dados do consultor
- * @returns {Promise} - Promessa com a resposta da criação
+ * Salva (insere/atualiza) um consultor
+ * @param {object} data - Dados do consultor
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function createConsultor(data) {
-    return apiPost('consultores', data);
-}
-
-/**
- * Atualiza um consultor existente
- * @param {number} id - ID do consultor
- * @param {Object} data - Dados atualizados do consultor
- * @returns {Promise} - Promessa com a resposta da atualização
- */
-function updateConsultor(id, data) {
-    return apiPut(`consultores/${id}`, data);
+function salvarConsultor(data) {
+    return apiRequest('salvar_consultor', data, 'POST');
 }
 
 /**
  * Exclui um consultor
  * @param {number} id - ID do consultor
- * @returns {Promise} - Promessa com a resposta da exclusão
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function deleteConsultor(id) {
-    return apiDelete(`consultores/${id}`);
+function excluirConsultor(id) {
+    return apiRequest('excluir_consultor', { id }, 'DELETE');
 }
 
 /**
- * Verifica se um consultor pode ser excluído
+ * Verifica se um consultor está em uso
  * @param {number} id - ID do consultor
- * @returns {Promise} - Promessa com o resultado da verificação
+ * @return {Promise} - Promessa com o resultado da verificação
  */
-function canDeleteConsultor(id) {
-    return apiGet(`consultores/${id}/can-delete`);
+function verificarConsultorUso(id) {
+    return apiRequest('verificar_consultor_uso', { id });
 }
 
-// === API de Ordens de Serviço ===
+// ===================== FUNÇÕES DE ORDENS DE SERVIÇO =====================
 
 /**
- * Busca lista de ordens de serviço
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de ordens de serviço
+ * Lista ordens de serviço com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de ordens de serviço
  */
-function fetchOrdens(params = {}) {
-    return apiGet('os', params);
+function listarOS(filtros = {}) {
+    return apiRequest('listar_os', filtros);
 }
 
 /**
- * Busca uma ordem de serviço específica
+ * Obtém dados de uma ordem de serviço específica
  * @param {number} id - ID da ordem de serviço
- * @returns {Promise} - Promessa com os dados da ordem de serviço
+ * @return {Promise} - Promessa com os dados da ordem de serviço
  */
-function fetchOrdem(id) {
-    return apiGet(`os/${id}`);
+function obterOS(id) {
+    return apiRequest('obter_os', { id });
 }
 
 /**
- * Cria uma nova ordem de serviço
- * @param {Object} data - Dados da ordem de serviço
- * @returns {Promise} - Promessa com a resposta da criação
+ * Salva (insere/atualiza) uma ordem de serviço
+ * @param {object} data - Dados da ordem de serviço
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function createOrdem(data) {
-    return apiPost('os', data);
-}
-
-/**
- * Atualiza uma ordem de serviço existente
- * @param {number} id - ID da ordem de serviço
- * @param {Object} data - Dados atualizados da ordem de serviço
- * @returns {Promise} - Promessa com a resposta da atualização
- */
-function updateOrdem(id, data) {
-    return apiPut(`os/${id}`, data);
+function salvarOS(data) {
+    return apiRequest('salvar_os', data, 'POST');
 }
 
 /**
  * Exclui uma ordem de serviço
  * @param {number} id - ID da ordem de serviço
- * @returns {Promise} - Promessa com a resposta da exclusão
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function deleteOrdem(id) {
-    return apiDelete(`os/${id}`);
+function excluirOS(id) {
+    return apiRequest('excluir_os', { id }, 'DELETE');
 }
 
 /**
- * Verifica se uma ordem de serviço pode ser alterada ou excluída
+ * Verifica se uma ordem de serviço pode ser modificada
  * @param {number} id - ID da ordem de serviço
- * @returns {Promise} - Promessa com o resultado da verificação
+ * @return {Promise} - Promessa com o resultado da verificação
  */
-function canModifyOrdem(id) {
-    return apiGet(`os/${id}/can-modify`);
+function verificarOSModificavel(id) {
+    return apiRequest('verificar_os_modificavel', { id });
 }
 
 /**
- * Gera o PDF da ordem de serviço
+ * Gera o PDF de uma ordem de serviço
  * @param {number} id - ID da ordem de serviço
- * @returns {Promise} - Promessa com a URL do PDF gerado
+ * @return {Promise} - Promessa com a URL do PDF
  */
-function generateOSPDF(id) {
-    return apiGet(`os/${id}/pdf`)
-        .then(response => {
-            if (response && response.pdfUrl) {
-                return response.pdfUrl;
-            }
-            throw new Error('URL do PDF não encontrada na resposta');
-        });
+function gerarOSPDF(id) {
+    return apiRequest('gerar_os_pdf', { id });
 }
 
 /**
- * Envia a ordem de serviço por e-mail
+ * Envia uma ordem de serviço por e-mail
  * @param {number} id - ID da ordem de serviço
- * @returns {Promise} - Promessa com a resposta do envio
+ * @return {Promise} - Promessa com o resultado do envio
  */
-function sendOSEmail(id) {
-    return apiPost(`os/${id}/send-email`);
+function enviarOSEmail(id) {
+    return apiRequest('enviar_os_email', { id });
 }
 
-// === API de Relação de OS ===
+// ===================== FUNÇÕES DE RELAÇÃO DE OS =====================
 
 /**
- * Busca lista de relação de ordens de serviço
- * @param {Object} params - Parâmetros de filtro e paginação
- * @returns {Promise} - Promessa com a lista de relação de OS
+ * Lista relação de ordens de serviço com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a relação de ordens de serviço
  */
-function fetchRelacaoOS(params = {}) {
-    return apiGet('relacao', params);
+function listarRelacaoOS(filtros = {}) {
+    return apiRequest('listar_relacao_os', filtros);
 }
 
 /**
  * Atualiza o status de faturamento de uma OS
  * @param {number} id - ID da OS
- * @param {Object} data - Dados de faturamento { faturado: 'S'/'N' }
- * @returns {Promise} - Promessa com a resposta da atualização
+ * @param {object} data - Dados de faturamento
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function updateOSFaturamento(id, data) {
-    return apiPut(`relacao/${id}/faturamento`, data);
+function atualizarOSFaturamento(id, data) {
+    return apiRequest('atualizar_os_faturamento', { id, ...data }, 'PUT');
 }
 
 /**
  * Atualiza o status de cobrança de uma OS
  * @param {number} id - ID da OS
- * @param {Object} data - Dados de cobrança { cobrado: 'S'/'N' }
- * @returns {Promise} - Promessa com a resposta da atualização
+ * @param {object} data - Dados de cobrança
+ * @return {Promise} - Promessa com o resultado da operação
  */
-function updateOSCobranca(id, data) {
-    return apiPut(`relacao/${id}/cobranca`, data);
+function atualizarOSCobranca(id, data) {
+    return apiRequest('atualizar_os_cobranca', { id, ...data }, 'PUT');
+}
+
+/**
+ * Obtém estatísticas da relação de OS
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com as estatísticas
+ */
+function obterEstatisticasRelacao(filtros = {}) {
+    return apiRequest('obter_estatisticas_relacao', filtros);
+}
+
+/**
+ * Gera um relatório em PDF da relação de OS
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a URL do PDF
+ */
+function gerarRelacaoPDF(filtros = {}) {
+    return apiRequest('gerar_relacao_pdf', filtros);
+}
+
+/**
+ * Exporta a relação de OS para Excel
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a URL do arquivo Excel
+ */
+function exportarRelacaoExcel(filtros = {}) {
+    return apiRequest('exportar_relacao_excel', filtros);
 }

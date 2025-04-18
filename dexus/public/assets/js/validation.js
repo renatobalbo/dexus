@@ -1,595 +1,14 @@
 /**
- * Sistema de Gestão Dexus - Funções de Validação
- * Responsável pela validação dos formulários e formatação de campos
+ * Sistema de Gestão Dexus - Validação JavaScript
+ * Funções para validação de formulários
  */
-
-/**
- * Configura validação para o formulário de cliente
- */
-function setupClienteValidation() {
-    const form = document.getElementById('form-cliente');
-    if (!form) return;
-    
-    // Validar ao enviar o formulário
-    form.addEventListener('submit', function(e) {
-        if (!validateClienteForm()) {
-            e.preventDefault();
-        }
-    });
-    
-    // Configurar campo de tipo de pessoa (CPF/CNPJ)
-    setupTipoPessoaField();
-    
-    // Configurar máscaras para os campos
-    setupCPFCNPJMask();
-    setupCurrencyMask('CLIVAL');
-}
-
-/**
- * Valida o formulário de cliente
- * @returns {boolean} - Indica se o formulário é válido
- */
-function validateClienteForm() {
-    let isValid = true;
-    
-    // Validar tipo de pessoa
-    const tipoPessoa = document.getElementById('CLITIP');
-    if (!tipoPessoa.value) {
-        showFieldError('CLITIP', 'Selecione o tipo de pessoa.');
-        isValid = false;
-    }
-    
-    // Validar CPF/CNPJ
-    const cpfCnpj = document.getElementById('CLIDOC');
-    if (!cpfCnpj.value) {
-        showFieldError('CLIDOC', 'Informe o CPF ou CNPJ.');
-        isValid = false;
-    } else {
-        // Validar formato específico conforme o tipo de pessoa
-        if (tipoPessoa.value === 'F' && !validateCPF(cpfCnpj.value)) {
-            showFieldError('CLIDOC', 'CPF inválido.');
-            isValid = false;
-        } else if (tipoPessoa.value === 'J' && !validateCNPJ(cpfCnpj.value)) {
-            showFieldError('CLIDOC', 'CNPJ inválido.');
-            isValid = false;
-        }
-    }
-    
-    // Validar Razão Social
-    const razaoSocial = document.getElementById('CLIRAZ');
-    if (!razaoSocial.value) {
-        showFieldError('CLIRAZ', 'Informe a razão social.');
-        isValid = false;
-    }
-    
-    // Validar Município
-    const municipio = document.getElementById('CLIMUN');
-    if (!municipio.value) {
-        showFieldError('CLIMUN', 'Informe o município.');
-        isValid = false;
-    }
-    
-    // Validar UF
-    const uf = document.getElementById('CLIEST');
-    if (!uf.value) {
-        showFieldError('CLIEST', 'Informe a UF.');
-        isValid = false;
-    }
-    
-    // Validar E-mail OS
-    const emailOS = document.getElementById('CLIEOS');
-    if (emailOS.value && !validateEmail(emailOS.value)) {
-        showFieldError('CLIEOS', 'E-mail inválido.');
-        isValid = false;
-    }
-    
-    // Validar E-mail NF
-    const emailNF = document.getElementById('CLIENF');
-    if (emailNF.value && !validateEmail(emailNF.value)) {
-        showFieldError('CLIENF', 'E-mail inválido.');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-/**
- * Configura o campo de tipo de pessoa (altera máscara e validação)
- */
-function setupTipoPessoaField() {
-    const tipoPessoa = document.getElementById('CLITIP');
-    const cpfCnpj = document.getElementById('CLIDOC');
-    const cpfCnpjLabel = document.querySelector('label[for="CLIDOC"]');
-    
-    if (!tipoPessoa || !cpfCnpj || !cpfCnpjLabel) return;
-    
-    // Configurar evento para mudança de tipo
-    tipoPessoa.addEventListener('change', function() {
-        const tipo = this.value;
-        
-        // Atualizar label
-        if (tipo === 'F') {
-            cpfCnpjLabel.textContent = 'CPF:';
-            cpfCnpj.placeholder = '000.000.000-00';
-            cpfCnpj.maxLength = 14;
-        } else if (tipo === 'J') {
-            cpfCnpjLabel.textContent = 'CNPJ:';
-            cpfCnpj.placeholder = '00.000.000/0000-00';
-            cpfCnpj.maxLength = 18;
-        }
-        
-        // Limpar campo
-        cpfCnpj.value = '';
-        clearFieldError('CLIDOC');
-    });
-    
-    // Inicializar com o valor padrão
-    if (tipoPessoa.value) {
-        tipoPessoa.dispatchEvent(new Event('change'));
-    }
-}
-
-/**
- * Configura máscaras para CPF/CNPJ
- */
-function setupCPFCNPJMask() {
-    const cpfCnpj = document.getElementById('CLIDOC');
-    if (!cpfCnpj) return;
-    
-    cpfCnpj.addEventListener('input', function(e) {
-        const tipo = document.getElementById('CLITIP').value;
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (tipo === 'F') {
-            // Máscara de CPF: 000.000.000-00
-            if (value.length <= 11) {
-                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-            }
-        } else if (tipo === 'J') {
-            // Máscara de CNPJ: 00.000.000/0000-00
-            if (value.length <= 14) {
-                value = value.replace(/(\d{2})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d)/, '$1/$2');
-                value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
-            }
-        }
-        
-        e.target.value = value;
-    });
-}
-
-/**
- * Configura máscara para campos de valor monetário
- * @param {string} fieldId - ID do campo
- */
-function setupCurrencyMask(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    field.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value === '') {
-            e.target.value = '';
-            return;
-        }
-        
-        // Converter para float (dividir por 100 para considerar centavos)
-        value = parseFloat(value) / 100;
-        
-        // Formatar como moeda brasileira
-        e.target.value = value.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    });
-}
-
-/**
- * Configura máscara para campos de telefone
- * @param {string} fieldId - ID do campo
- */
-function setupPhoneMask(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    field.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 11) {
-            value = value.slice(0, 11);
-        }
-        
-        if (value.length > 10) {
-            // Formato: (XX) 9XXXX-XXXX
-            value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-        } else if (value.length > 6) {
-            // Formato: (XX) XXXX-XXXX
-            value = value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
-        } else if (value.length > 2) {
-            // Formato: (XX)
-            value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
-        }
-        
-        e.target.value = value;
-    });
-}
-
-/**
- * Configura validação para o formulário de serviço
- */
-function setupServicoValidation() {
-    const form = document.getElementById('form-servico');
-    if (!form) return;
-    
-    // Validar ao enviar o formulário
-    form.addEventListener('submit', function(e) {
-        if (!validateServicoForm()) {
-            e.preventDefault();
-        }
-    });
-}
-
-/**
- * Valida o formulário de serviço
- * @returns {boolean} - Indica se o formulário é válido
- */
-function validateServicoForm() {
-    let isValid = true;
-    
-    // Validar descrição
-    const descricao = document.getElementById('SERDES');
-    if (!descricao.value) {
-        showFieldError('SERDES', 'Informe a descrição do serviço.');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-/**
- * Configura validação para o formulário de modalidade
- */
-function setupModalidadeValidation() {
-    const form = document.getElementById('form-modalidade');
-    if (!form) return;
-    
-    // Validar ao enviar o formulário
-    form.addEventListener('submit', function(e) {
-        if (!validateModalidadeForm()) {
-            e.preventDefault();
-        }
-    });
-}
-
-/**
- * Valida o formulário de modalidade
- * @returns {boolean} - Indica se o formulário é válido
- */
-function validateModalidadeForm() {
-    let isValid = true;
-    
-    // Validar descrição
-    const descricao = document.getElementById('MODDES');
-    if (!descricao.value) {
-        showFieldError('MODDES', 'Informe a descrição da modalidade.');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-/**
- * Configura validação para o formulário de consultor
- */
-function setupConsultorValidation() {
-    const form = document.getElementById('form-consultor');
-    if (!form) return;
-    
-    // Validar ao enviar o formulário
-    form.addEventListener('submit', function(e) {
-        if (!validateConsultorForm()) {
-            e.preventDefault();
-        }
-    });
-    
-    // Configurar máscaras para os campos
-    setupPhoneMask('CONTEL');
-    setupCurrencyMask('CONVAL');
-}
-
-/**
- * Valida o formulário de consultor
- * @returns {boolean} - Indica se o formulário é válido
- */
-function validateConsultorForm() {
-    let isValid = true;
-    
-    // Validar nome
-    const nome = document.getElementById('CONNOM');
-    if (!nome.value) {
-        showFieldError('CONNOM', 'Informe o nome do consultor.');
-        isValid = false;
-    }
-    
-    // Validar telefone
-    const telefone = document.getElementById('CONTEL');
-    if (telefone.value && !validatePhone(telefone.value)) {
-        showFieldError('CONTEL', 'Telefone inválido.');
-        isValid = false;
-    }
-    
-    // Validar e-mail
-    const email = document.getElementById('CONEMA');
-    if (email.value && !validateEmail(email.value)) {
-        showFieldError('CONEMA', 'E-mail inválido.');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-/**
- * Configura validação para o formulário de OS
- */
-function setupOSValidation() {
-    const form = document.getElementById('form-os');
-    if (!form) return;
-    
-    // Validar ao enviar o formulário
-    form.addEventListener('submit', function(e) {
-        if (!validateOSForm()) {
-            e.preventDefault();
-        }
-    });
-    
-    // Configurar máscaras para os campos
-    setupDateMask('OSDATA');
-    setupTimeMask('OSHINI');
-    setupTimeMask('OSHFIM');
-    setupTimeMask('OSHDES');
-    setupTimeMask('OSHTRA');
-    
-    // Configurar cálculo automático do tempo total
-    setupTempoTotalCalculation();
-}
-
-/**
- * Valida o formulário de OS
- * @returns {boolean} - Indica se o formulário é válido
- */
-function validateOSForm() {
-    let isValid = true;
-    
-    // Validar cliente
-    const cliente = document.getElementById('OSCLICOD');
-    if (!cliente.value) {
-        showFieldError('OSCLICOD', 'Selecione o cliente.');
-        isValid = false;
-    }
-    
-    // Validar data
-    const data = document.getElementById('OSDATA');
-    if (!data.value) {
-        showFieldError('OSDATA', 'Informe a data de realização.');
-        isValid = false;
-    } else if (!validateDate(data.value)) {
-        showFieldError('OSDATA', 'Data inválida.');
-        isValid = false;
-    }
-    
-    // Validar hora início
-    const horaInicio = document.getElementById('OSHINI');
-    if (!horaInicio.value) {
-        showFieldError('OSHINI', 'Informe a hora de início.');
-        isValid = false;
-    } else if (!validateTime(horaInicio.value)) {
-        showFieldError('OSHINI', 'Hora inválida.');
-        isValid = false;
-    }
-    
-    // Validar hora fim
-    const horaFim = document.getElementById('OSHFIM');
-    if (!horaFim.value) {
-        showFieldError('OSHFIM', 'Informe a hora de término.');
-        isValid = false;
-    } else if (!validateTime(horaFim.value)) {
-        showFieldError('OSHFIM', 'Hora inválida.');
-        isValid = false;
-    }
-    
-    // Validar serviço
-    const servico = document.getElementById('OSSERCOD');
-    if (!servico.value) {
-        showFieldError('OSSERCOD', 'Selecione o serviço.');
-        isValid = false;
-    }
-    
-    // Validar consultor
-    const consultor = document.getElementById('OSCONCOD');
-    if (!consultor.value) {
-        showFieldError('OSCONCOD', 'Selecione o consultor.');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-/**
- * Configura o cálculo automático do tempo total
- */
-function setupTempoTotalCalculation() {
-    const horaInicio = document.getElementById('OSHINI');
-    const horaFim = document.getElementById('OSHFIM');
-    const descontos = document.getElementById('OSHDES');
-    const traslado = document.getElementById('OSHTRA');
-    const tempoTotal = document.getElementById('OSHTOT');
-    
-    if (!horaInicio || !horaFim || !descontos || !traslado || !tempoTotal) return;
-    
-    // Função para calcular tempo total
-    const calcularTempoTotal = () => {
-        // Verificar se todos os campos necessários estão preenchidos
-        if (!horaInicio.value || !horaFim.value) {
-            tempoTotal.value = '';
-            return;
-        }
-        
-        // Converter horas para minutos
-        const inicioMinutos = timeToMinutes(horaInicio.value);
-        const fimMinutos = timeToMinutes(horaFim.value);
-        const descontosMinutos = descontos.value ? timeToMinutes(descontos.value) : 0;
-        const trasladoMinutos = traslado.value ? timeToMinutes(traslado.value) : 0;
-        
-        // Calcular tempo total em minutos
-        let totalMinutos = fimMinutos - inicioMinutos - descontosMinutos + trasladoMinutos;
-        
-        // Se o resultado for negativo (ex: trabalho que passa da meia-noite)
-        if (totalMinutos < 0) {
-            totalMinutos += 24 * 60; // Adicionar 24 horas
-        }
-        
-        // Converter de volta para formato HH:MM
-        tempoTotal.value = minutesToTime(totalMinutos);
-    };
-    
-    // Adicionar eventos nos campos para recalcular o tempo total
-    horaInicio.addEventListener('input', calcularTempoTotal);
-    horaFim.addEventListener('input', calcularTempoTotal);
-    descontos.addEventListener('input', calcularTempoTotal);
-    traslado.addEventListener('input', calcularTempoTotal);
-}
-
-/**
- * Configura máscara para campos de data (DD/MM/YYYY)
- * @param {string} fieldId - ID do campo
- */
-function setupDateMask(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    field.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 8) {
-            value = value.slice(0, 8);
-        }
-        
-        if (value.length > 4) {
-            // Formato: DD/MM/YYYY
-            value = value.replace(/(\d{2})(\d{2})(\d{0,4})/, '$1/$2/$3');
-        } else if (value.length > 2) {
-            // Formato: DD/MM
-            value = value.replace(/(\d{2})(\d{0,2})/, '$1/$2');
-        }
-        
-        e.target.value = value;
-    });
-}
-
-/**
- * Configura máscara para campos de hora (HH:MM)
- * @param {string} fieldId - ID do campo
- */
-function setupTimeMask(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    field.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 4) {
-            value = value.slice(0, 4);
-        }
-        
-        if (value.length > 2) {
-            // Formato: HH:MM
-            value = value.replace(/(\d{2})(\d{0,2})/, '$1:$2');
-        }
-        
-        e.target.value = value;
-    });
-}
-
-/**
- * Converte tempo no formato HH:MM para minutos
- * @param {string} time - Tempo no formato HH:MM
- * @returns {number} - Tempo em minutos
- */
-function timeToMinutes(time) {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-}
-
-/**
- * Converte minutos para o formato HH:MM
- * @param {number} minutes - Tempo em minutos
- * @returns {string} - Tempo no formato HH:MM
- */
-function minutesToTime(minutes) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-}
-
-/**
- * Exibe mensagem de erro para um campo específico
- * @param {string} fieldId - ID do campo
- * @param {string} message - Mensagem de erro
- */
-function showFieldError(fieldId, message) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    // Adicionar classe de erro
-    field.classList.add('is-invalid');
-    
-    // Verificar se já existe mensagem de erro
-    let errorElement = document.getElementById(`${fieldId}-error`);
-    
-    if (!errorElement) {
-        // Criar elemento para mensagem de erro
-        errorElement = document.createElement('div');
-        errorElement.id = `${fieldId}-error`;
-        errorElement.className = 'invalid-feedback';
-        
-        // Adicionar após o campo
-        field.parentNode.appendChild(errorElement);
-    }
-    
-    // Atualizar mensagem
-    errorElement.textContent = message;
-}
-
-/**
- * Remove mensagem de erro de um campo
- * @param {string} fieldId - ID do campo
- */
-function clearFieldError(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (!field) return;
-    
-    // Remover classe de erro
-    field.classList.remove('is-invalid');
-    
-    // Remover mensagem de erro
-    const errorElement = document.getElementById(`${fieldId}-error`);
-    if (errorElement) {
-        errorElement.remove();
-    }
-}
 
 /**
  * Valida um CPF
  * @param {string} cpf - CPF a ser validado
- * @returns {boolean} - Indica se o CPF é válido
+ * @return {boolean} - Indica se o CPF é válido
  */
-function validateCPF(cpf) {
+function validarCPF(cpf) {
     // Remover caracteres não numéricos
     cpf = cpf.replace(/\D/g, '');
     
@@ -604,20 +23,20 @@ function validateCPF(cpf) {
     }
     
     // Cálculo do primeiro dígito verificador
-    let sum = 0;
+    let soma = 0;
     for (let i = 0; i < 9; i++) {
-        sum += parseInt(cpf.charAt(i)) * (10 - i);
+        soma += parseInt(cpf.charAt(i)) * (10 - i);
     }
-    let remainder = 11 - (sum % 11);
-    let dv1 = remainder > 9 ? 0 : remainder;
+    let resto = 11 - (soma % 11);
+    let dv1 = resto > 9 ? 0 : resto;
     
     // Cálculo do segundo dígito verificador
-    sum = 0;
+    soma = 0;
     for (let i = 0; i < 10; i++) {
-        sum += parseInt(cpf.charAt(i)) * (11 - i);
+        soma += parseInt(cpf.charAt(i)) * (11 - i);
     }
-    remainder = 11 - (sum % 11);
-    let dv2 = remainder > 9 ? 0 : remainder;
+    resto = 11 - (soma % 11);
+    let dv2 = resto > 9 ? 0 : resto;
     
     // Verificar se os dígitos verificadores estão corretos
     return (parseInt(cpf.charAt(9)) === dv1 && parseInt(cpf.charAt(10)) === dv2);
@@ -626,9 +45,9 @@ function validateCPF(cpf) {
 /**
  * Valida um CNPJ
  * @param {string} cnpj - CNPJ a ser validado
- * @returns {boolean} - Indica se o CNPJ é válido
+ * @return {boolean} - Indica se o CNPJ é válido
  */
-function validateCNPJ(cnpj) {
+function validarCNPJ(cnpj) {
     // Remover caracteres não numéricos
     cnpj = cnpj.replace(/\D/g, '');
     
@@ -643,104 +62,432 @@ function validateCNPJ(cnpj) {
     }
     
     // Cálculo do primeiro dígito verificador
-    let size = cnpj.length - 2;
-    let numbers = cnpj.substring(0, size);
-    const digits = cnpj.substring(size);
-    let sum = 0;
-    let pos = size - 7;
+    let tamanho = cnpj.length - 2;
+    let numeros = cnpj.substring(0, tamanho);
+    const digitos = cnpj.substring(tamanho);
+    let soma = 0;
+    let pos = tamanho - 7;
     
-    for (let i = size; i >= 1; i--) {
-        sum += parseInt(numbers.charAt(size - i)) * pos--;
+    for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
         if (pos < 2) {
             pos = 9;
         }
     }
     
-    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(0))) {
+    let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+    if (resultado !== parseInt(digitos.charAt(0))) {
         return false;
     }
     
     // Cálculo do segundo dígito verificador
-    size = size + 1;
-    numbers = cnpj.substring(0, size);
-    sum = 0;
-    pos = size - 7;
+    tamanho = tamanho + 1;
+    numeros = cnpj.substring(0, tamanho);
+    soma = 0;
+    pos = tamanho - 7;
     
-    for (let i = size; i >= 1; i--) {
-        sum += parseInt(numbers.charAt(size - i)) * pos--;
+    for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
         if (pos < 2) {
             pos = 9;
         }
     }
     
-    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
     
-    return (result === parseInt(digits.charAt(1)));
+    return (resultado === parseInt(digitos.charAt(1)));
 }
 
 /**
  * Valida um endereço de e-mail
  * @param {string} email - E-mail a ser validado
- * @returns {boolean} - Indica se o e-mail é válido
+ * @return {boolean} - Indica se o e-mail é válido
  */
-function validateEmail(email) {
+function validarEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 }
 
 /**
- * Valida um número de telefone
- * @param {string} phone - Telefone a ser validado
- * @returns {boolean} - Indica se o telefone é válido
+ * Valida uma data
+ * @param {string} data - Data a ser validada (formato DD/MM/YYYY)
+ * @return {boolean} - Indica se a data é válida
  */
-function validatePhone(phone) {
-    // Remover caracteres não numéricos
-    phone = phone.replace(/\D/g, '');
-    
-    // Verificar se tem entre 10 e 11 dígitos
-    return phone.length >= 10 && phone.length <= 11;
-}
-
-/**
- * Valida uma data no formato DD/MM/YYYY
- * @param {string} date - Data a ser validada
- * @returns {boolean} - Indica se a data é válida
- */
-function validateDate(date) {
+function validarData(data) {
     // Verificar formato
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
         return false;
     }
     
-    // Extrair partes da data
-    const [day, month, year] = date.split('/').map(Number);
+    // Extrair dia, mês e ano
+    const partes = data.split('/');
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10);
+    const ano = parseInt(partes[2], 10);
     
-    // Criar objeto Date
-    const dateObj = new Date(year, month - 1, day);
+    // Verificar limites básicos
+    if (mes < 1 || mes > 12) {
+        return false;
+    }
     
-    // Verificar se a data é válida
-    return (
-        dateObj.getFullYear() === year &&
-        dateObj.getMonth() === month - 1 &&
-        dateObj.getDate() === day
-    );
+    // Obter o último dia do mês
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    
+    // Verificar dia
+    if (dia < 1 || dia > ultimoDia) {
+        return false;
+    }
+    
+    return true;
 }
 
 /**
- * Valida uma hora no formato HH:MM
- * @param {string} time - Hora a ser validada
- * @returns {boolean} - Indica se a hora é válida
+ * Valida uma hora
+ * @param {string} hora - Hora a ser validada (formato HH:MM)
+ * @return {boolean} - Indica se a hora é válida
  */
-function validateTime(time) {
+function validarHora(hora) {
     // Verificar formato
-    if (!/^\d{2}:\d{2}$/.test(time)) {
+    if (!/^\d{2}:\d{2}$/.test(hora)) {
         return false;
     }
     
     // Extrair horas e minutos
-    const [hours, minutes] = time.split(':').map(Number);
+    const partes = hora.split(':');
+    const horas = parseInt(partes[0], 10);
+    const minutos = parseInt(partes[1], 10);
     
-    // Verificar se os valores estão no intervalo válido
-    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+    // Verificar limites
+    if (horas < 0 || horas > 23 || minutos < 0 || minutos > 59) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Validação de formulário de cliente
+ */
+function validarFormCliente() {
+    let valido = true;
+    const formulario = document.getElementById('form-cliente');
+    
+    // Limpar mensagens de erro anteriores
+    limparMensagensErro();
+    
+    // Validar tipo
+    const tipo = document.getElementById('CLITIP');
+    if (!tipo.value) {
+        exibirErro(tipo, 'O tipo de pessoa é obrigatório.');
+        valido = false;
+    }
+    
+    // Validar documento (CPF/CNPJ)
+    const documento = document.getElementById('CLIDOC');
+    if (!documento.value) {
+        exibirErro(documento, 'O CPF/CNPJ é obrigatório.');
+        valido = false;
+    } else {
+        // Validar formato conforme o tipo
+        if (tipo.value === 'F') {
+            if (!validarCPF(documento.value)) {
+                exibirErro(documento, 'CPF inválido.');
+                valido = false;
+            }
+        } else if (tipo.value === 'J') {
+            if (!validarCNPJ(documento.value)) {
+                exibirErro(documento, 'CNPJ inválido.');
+                valido = false;
+            }
+        }
+    }
+    
+    // Validar razão social
+    const razaoSocial = document.getElementById('CLIRAZ');
+    if (!razaoSocial.value) {
+        exibirErro(razaoSocial, 'A razão social é obrigatória.');
+        valido = false;
+    }
+    
+    // Validar e-mail OS (se preenchido)
+    const emailOS = document.getElementById('CLIEOS');
+    if (emailOS.value && !validarEmail(emailOS.value)) {
+        exibirErro(emailOS, 'E-mail inválido.');
+        valido = false;
+    }
+    
+    // Validar e-mail NF (se preenchido)
+    const emailNF = document.getElementById('CLIENF');
+    if (emailNF.value && !validarEmail(emailNF.value)) {
+        exibirErro(emailNF, 'E-mail inválido.');
+        valido = false;
+    }
+    
+    return valido;
+}
+
+/**
+ * Validação de formulário de serviço
+ */
+function validarFormServico() {
+    let valido = true;
+    const formulario = document.getElementById('form-servico');
+    
+    // Limpar mensagens de erro anteriores
+    limparMensagensErro();
+    
+    // Validar descrição
+    const descricao = document.getElementById('SERDES');
+    if (!descricao.value) {
+        exibirErro(descricao, 'A descrição do serviço é obrigatória.');
+        valido = false;
+    }
+    
+    return valido;
+}
+
+/**
+ * Validação de formulário de modalidade
+ */
+function validarFormModalidade() {
+    let valido = true;
+    const formulario = document.getElementById('form-modalidade');
+    
+    // Limpar mensagens de erro anteriores
+    limparMensagensErro();
+    
+    // Validar descrição
+    const descricao = document.getElementById('MODDES');
+    if (!descricao.value) {
+        exibirErro(descricao, 'A descrição da modalidade é obrigatória.');
+        valido = false;
+    }
+    
+    return valido;
+}
+
+/**
+ * Validação de formulário de consultor
+ */
+function validarFormConsultor() {
+    let valido = true;
+    const formulario = document.getElementById('form-consultor');
+    
+    // Limpar mensagens de erro anteriores
+    limparMensagensErro();
+    
+    // Validar nome
+    const nome = document.getElementById('CONNOM');
+    if (!nome.value) {
+        exibirErro(nome, 'O nome do consultor é obrigatório.');
+        valido = false;
+    }
+    
+    // Validar e-mail (se preenchido)
+    const email = document.getElementById('CONEMA');
+    if (email.value && !validarEmail(email.value)) {
+        exibirErro(email, 'E-mail inválido.');
+        valido = false;
+    }
+    
+    return valido;
+}
+
+/**
+ * Validação de formulário de ordem de serviço
+ */
+function validarFormOS() {
+    let valido = true;
+    const formulario = document.getElementById('form-os');
+    
+    // Limpar mensagens de erro anteriores
+    limparMensagensErro();
+    
+    // Validar cliente
+    const cliente = document.getElementById('OSCLICOD');
+    if (!cliente.value) {
+        exibirErro(cliente, 'O cliente é obrigatório.');
+        valido = false;
+    }
+    
+    // Validar data
+    const data = document.getElementById('OSDATA');
+    if (!data.value) {
+        exibirErro(data, 'A data é obrigatória.');
+        valido = false;
+    } else if (!validarData(data.value)) {
+        exibirErro(data, 'Data inválida.');
+        valido = false;
+    }
+    
+    // Validar serviço
+    const servico = document.getElementById('OSSERCOD');
+    if (!servico.value) {
+        exibirErro(servico, 'O serviço é obrigatório.');
+        valido = false;
+    }
+    
+    // Validar consultor
+    const consultor = document.getElementById('OSCONCOD');
+    if (!consultor.value) {
+        exibirErro(consultor, 'O consultor é obrigatório.');
+        valido = false;
+    }
+    
+    // Validar hora início (se preenchida)
+    const horaInicio = document.getElementById('OSHINI');
+    if (horaInicio.value && !validarHora(horaInicio.value)) {
+        exibirErro(horaInicio, 'Hora inválida.');
+        valido = false;
+    }
+    
+    // Validar hora fim (se preenchida)
+    const horaFim = document.getElementById('OSHFIM');
+    if (horaFim.value && !validarHora(horaFim.value)) {
+        exibirErro(horaFim, 'Hora inválida.');
+        valido = false;
+    }
+    
+    return valido;
+}
+
+/**
+ * Exibe mensagem de erro para um campo
+ * @param {HTMLElement} campo - Campo com erro
+ * @param {string} mensagem - Mensagem de erro
+ */
+function exibirErro(campo, mensagem) {
+    campo.classList.add('is-invalid');
+    
+    // Criar div de feedback
+    const feedback = document.createElement('div');
+    feedback.className = 'invalid-feedback';
+    feedback.innerText = mensagem;
+    
+    // Adicionar após o campo
+    campo.parentNode.appendChild(feedback);
+}
+
+/**
+ * Limpa todas as mensagens de erro do formulário
+ */
+function limparMensagensErro() {
+    // Remover classe de erro dos campos
+    document.querySelectorAll('.is-invalid').forEach(campo => {
+        campo.classList.remove('is-invalid');
+    });
+    
+    // Remover mensagens de erro
+    document.querySelectorAll('.invalid-feedback').forEach(feedback => {
+        feedback.remove();
+    });
+}
+
+/**
+ * Configura campo CPF/CNPJ conforme o tipo de pessoa
+ */
+function configurarCampoCPFCNPJ() {
+    const tipoPessoa = document.getElementById('CLITIP');
+    const cpfCnpj = document.getElementById('CLIDOC');
+    const labelCpfCnpj = document.querySelector('label[for="CLIDOC"]');
+    
+    if (tipoPessoa && cpfCnpj && labelCpfCnpj) {
+        tipoPessoa.addEventListener('change', function() {
+            if (this.value === 'F') {
+                // Pessoa Física - CPF
+                labelCpfCnpj.innerText = 'CPF:';
+                cpfCnpj.setAttribute('placeholder', '000.000.000-00');
+                cpfCnpj.classList.remove('cnpj-mask');
+                cpfCnpj.classList.remove('cpf-cnpj-mask');
+                cpfCnpj.classList.add('cpf-mask');
+            } else if (this.value === 'J') {
+                // Pessoa Jurídica - CNPJ
+                labelCpfCnpj.innerText = 'CNPJ:';
+                cpfCnpj.setAttribute('placeholder', '00.000.000/0000-00');
+                cpfCnpj.classList.remove('cpf-mask');
+                cpfCnpj.classList.remove('cpf-cnpj-mask');
+                cpfCnpj.classList.add('cnpj-mask');
+            } else {
+                // Tipo não definido
+                labelCpfCnpj.innerText = 'CPF/CNPJ:';
+                cpfCnpj.setAttribute('placeholder', '');
+                cpfCnpj.classList.remove('cpf-mask');
+                cpfCnpj.classList.remove('cnpj-mask');
+                cpfCnpj.classList.add('cpf-cnpj-mask');
+            }
+            
+            // Limpar campo
+            cpfCnpj.value = '';
+        });
+    }
+}
+
+/**
+ * Configura cálculo automático do tempo total
+ */
+function configurarCalculoTempoTotal() {
+    // Campos de tempo
+    const horaInicio = document.getElementById('OSHINI');
+    const horaFim = document.getElementById('OSHFIM');
+    const descontos = document.getElementById('OSHDES');
+    const traslado = document.getElementById('OSHTRA');
+    const tempoTotal = document.getElementById('OSHTOT');
+    
+    if (horaInicio && horaFim && descontos && traslado && tempoTotal) {
+        // Função para calcular o tempo total
+        const calcularTempoTotal = function() {
+            // Verificar se os campos necessários estão preenchidos
+            if (!horaInicio.value || !horaFim.value) {
+                tempoTotal.value = '';
+                return;
+            }
+            
+            // Converter tempos para minutos
+            const inicioMinutos = horaParaMinutos(horaInicio.value);
+            const fimMinutos = horaParaMinutos(horaFim.value);
+            const descontosMinutos = descontos.value ? horaParaMinutos(descontos.value) : 0;
+            const trasladoMinutos = traslado.value ? horaParaMinutos(traslado.value) : 0;
+            
+            // Calcular tempo total
+            let totalMinutos = fimMinutos - inicioMinutos - descontosMinutos + trasladoMinutos;
+            
+            // Se o resultado for negativo (trabalho que passa da meia-noite)
+            if (totalMinutos < 0) {
+                totalMinutos += 24 * 60; // Adicionar 24 horas
+            }
+            
+            // Converter de volta para formato HH:MM
+            tempoTotal.value = minutosParaHora(totalMinutos);
+        };
+        
+        // Adicionar event listeners para recalcular o tempo total
+        horaInicio.addEventListener('input', calcularTempoTotal);
+        horaFim.addEventListener('input', calcularTempoTotal);
+        descontos.addEventListener('input', calcularTempoTotal);
+        traslado.addEventListener('input', calcularTempoTotal);
+    }
+}
+
+/**
+ * Converte hora no formato HH:MM para minutos
+ * @param {string} hora - Hora no formato HH:MM
+ * @return {number} - Tempo em minutos
+ */
+function horaParaMinutos(hora) {
+    if (!hora) return 0;
+    
+    const partes = hora.split(':');
+    return parseInt(partes[0], 10) * 60 + parseInt(partes[1], 10);
+}
+
+/**
+ * Converte minutos para o formato HH:MM
+ * @param {number} minutos - Tempo em minutos
+ * @return {string} - Tempo no formato HH:MM
+ */
+function minutosParaHora(minutos) {
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+    
+    return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }

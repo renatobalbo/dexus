@@ -1,559 +1,48 @@
 /**
  * Sistema de Gestão Dexus - JavaScript Principal
- * Responsável pelo gerenciamento da aplicação, carregamento de conteúdo e interações com o usuário
+ * Funções gerais da aplicação
  */
 
-// Configuração inicial
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar a aplicação
-    initApp();
+    // Inicializar tooltips do Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
     
-    // Configurar navegação
-    setupNavigation();
-    
-    // Carregar dados do dashboard
-    loadDashboardData();
+    // Configurar alertas para fechamento automático
+    configurarAlertasAutomaticos();
 });
 
 /**
- * Inicializa a aplicação e verifica dependências
+ * Configura alertas para fechamento automático
  */
-function initApp() {
-    console.log('Inicializando Sistema de Gestão Dexus...');
-    
-    // Verificar conexão com o banco de dados
-    checkDatabaseConnection()
-        .then(response => {
-            console.log('Conexão com o banco de dados estabelecida.');
-        })
-        .catch(error => {
-            showAlert('Erro ao conectar ao banco de dados. Verifique as configurações.', 'danger');
-            console.error('Erro de conexão:', error);
-        });
-}
-
-/**
- * Configura a navegação entre as páginas
- */
-function setupNavigation() {
-    // Adicionar listeners aos links de navegação
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();  // Impedir que o # seja adicionado à URL
-            
-            // Remover classe active de todos os links
-            document.querySelectorAll('.nav-link').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // Adicionar classe active ao link clicado
-            this.classList.add('active');
-            
-            // Obter a página a ser carregada
-            const page = this.getAttribute('data-page');
-            
-            // Atualizar o título da página
-            const pageTitle = this.textContent.trim();
-            document.querySelector('main h1').textContent = pageTitle;
-            
-            // Carregar o conteúdo da página
-            loadPageContent(page);
-        });
+function configurarAlertasAutomaticos() {
+    document.querySelectorAll('.alert:not(.alert-permanent)').forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = bootstrap.Alert.getInstance(alert);
+            if (bsAlert) {
+                bsAlert.close();
+            } else {
+                alert.classList.remove('show');
+                setTimeout(() => {
+                    alert.remove();
+                }, 150);
+            }
+        }, 5000); // Fechar após 5 segundos
     });
 }
 
 /**
- * Carrega o conteúdo da página solicitada
- * @param {string} page - Nome da página a ser carregada
- */
-function loadPageContent(page) {
-    const contentArea = document.getElementById('content-area');
-    contentArea.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div></div>';
-    
-    // Determinar qual conteúdo carregar com base na página
-    switch(page) {
-        case 'dashboard':
-            loadDashboardContent();
-            break;
-        case 'clientes':
-            loadClientesContent();
-            break;
-        case 'servicos':
-            loadServicosContent();
-            break;
-        case 'modalidades':
-            loadModalidadesContent();
-            break;
-        case 'consultores':
-            loadConsultoresContent();
-            break;
-        case 'os':
-            loadOSContent();
-            break;
-        case 'relacao':
-            loadRelacaoContent();
-            break;
-        default:
-            contentArea.innerHTML = '<div class="alert alert-warning">Página não encontrada.</div>';
-    }
-}
-
-/**
- * Carrega o conteúdo do Dashboard
- */
-function loadDashboardContent() {
-    // Recarregar o conteúdo original do dashboard
-    loadDashboardData();
-    
-    // Mostrar o conteúdo do dashboard
-    const contentArea = document.getElementById('content-area');
-    
-    // O dashboard já está no HTML inicial, apenas exibimos ele novamente
-    fetch('/dexus-system/views/dashboard/dashboard.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            // Inicializar gráficos após carregar o conteúdo
-            initCharts();
-            // Carregar dados depois que os elementos existirem na página
-            loadDashboardData();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar o dashboard.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega os dados para o dashboard a partir da API
- */
-function loadDashboardData() {
-    // Se você confirmou que api/dashboard/stats funciona:
-    fetch('api/dashboard/stats')
-        .then(response => response.json())
-        .then(data => {
-            console.log("Dados recebidos do dashboard:", data); // Para depuração
-            if (data.success) {
-                // Atualizar contadores
-                document.getElementById('total-clientes').textContent = data.totalClientes || 0;
-                document.getElementById('os-mes').textContent = data.osMes || 0;
-                document.getElementById('os-pendentes').textContent = data.osPendentes || 0;
-                document.getElementById('os-nao-faturadas').textContent = data.osNaoFaturadas || 0;
-                
-                // Atualizar dados para os gráficos
-                updateChartData(data);
-            } else {
-                console.error("Erro nos dados do dashboard:", data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Erro ao carregar estatísticas do dashboard:', error);
-            showAlert('Erro ao carregar estatísticas do dashboard.', 'danger');
-        });
-}
-
-/**
- * Inicializa os gráficos do dashboard
- */
-function initCharts() {
-    // Gráfico de linhas para OS nos últimos 6 meses
-    const osChartElement = document.getElementById('osChart');
-    if (osChartElement) {
-        const osChart = new Chart(osChartElement, {
-            type: 'line',
-            data: {
-                labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
-                datasets: [{
-                    label: 'Ordens de Serviço',
-                    data: [0, 0, 0, 0, 0, 0], // Dados iniciais vazios
-                    borderColor: '#4e73df',
-                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                    tension: 0.3,
-                    fill: true
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Guardar referência ao gráfico para atualização posterior
-        window.osChart = osChart;
-    }
-    
-    // Gráfico de pizza para modalidades
-    const modalidadesChartElement = document.getElementById('modalidadesChart');
-    if (modalidadesChartElement) {
-        const modalidadesChart = new Chart(modalidadesChartElement, {
-            type: 'pie',
-            data: {
-                labels: ['Consultoria', 'Desenvolvimento', 'Suporte', 'Treinamento'],
-                datasets: [{
-                    data: [0, 0, 0, 0], // Dados iniciais vazios
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e'],
-                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a'],
-                    hoverBorderColor: "rgba(234, 236, 244, 1)"
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-        
-        // Guardar referência ao gráfico para atualização posterior
-        window.modalidadesChart = modalidadesChart;
-    }
-}
-
-/**
- * Atualiza os dados dos gráficos
- * @param {Object} data - Dados recebidos da API
- */
-function updateChartData(data) {
-    // Atualizar gráfico de OS
-    if (window.osChart && data.osMonthly) {
-        window.osChart.data.labels = data.osMonthly.labels || [];
-        window.osChart.data.datasets[0].data = data.osMonthly.values || [];
-        window.osChart.update();
-    }
-    
-    // Atualizar gráfico de modalidades
-    if (window.modalidadesChart && data.modalidades) {
-        window.modalidadesChart.data.labels = data.modalidades.labels || [];
-        window.modalidadesChart.data.datasets[0].data = data.modalidades.values || [];
-        window.modalidadesChart.update();
-    }
-}
-
-/**
- * Carrega o conteúdo da tela de Clientes
- */
-function loadClientesContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de listagem de clientes
-    fetch('/dexus-system/views/clientes/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar o botão de novo cliente
-            document.getElementById('btn-novo-cliente').addEventListener('click', () => {
-                loadClienteForm();
-            });
-            
-            // Carregar os dados dos clientes
-            loadClientesData();
-            
-            // Configurar a busca de clientes
-            setupClienteSearch();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a lista de clientes.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o formulário de cliente (novo ou edição)
- * @param {number} id - ID do cliente a ser editado (opcional)
- */
-function loadClienteForm(id = null) {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar o formulário de cliente
-    fetch('/dexus-system/views/clientes/form.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar validação do formulário
-            setupClienteValidation();
-            
-            // Se for edição, carregar os dados do cliente
-            if (id) {
-                loadClienteData(id);
-            } else {
-                // Configurar o campo de tipo de pessoa (CPF/CNPJ)
-                setupTipoPessoaField();
-                
-                // Carregar modalidades para o select
-                loadModalidadesSelect();
-            }
-            
-            // Configurar o botão de voltar
-            document.getElementById('btn-voltar').addEventListener('click', () => {
-                loadClientesContent();
-            });
-            
-            // Configurar o botão de salvar
-            document.getElementById('form-cliente').addEventListener('submit', (e) => {
-                e.preventDefault();
-                saveCliente(id);
-            });
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar o formulário de cliente.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o conteúdo da tela de Serviços
- */
-function loadServicosContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de listagem de serviços
-    fetch('/dexus-system/views/servicos/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar o botão de novo serviço
-            document.getElementById('btn-novo-servico').addEventListener('click', () => {
-                loadServicoForm();
-            });
-            
-            // Carregar os dados dos serviços
-            loadServicosData();
-            
-            // Configurar a busca de serviços
-            setupServicoSearch();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a lista de serviços.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o formulário de serviço (novo ou edição)
- * @param {number} id - ID do serviço a ser editado (opcional)
- */
-function loadServicoForm(id = null) {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar o formulário de serviço
-    fetch('/dexus-system/views/servicos/form.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar validação do formulário
-            setupServicoValidation();
-            
-            // Se for edição, carregar os dados do serviço
-            if (id) {
-                loadServicoData(id);
-            }
-            
-            // Configurar o botão de voltar
-            document.getElementById('btn-voltar').addEventListener('click', () => {
-                loadServicosContent();
-            });
-            
-            // Configurar o botão de salvar
-            document.getElementById('form-servico').addEventListener('submit', (e) => {
-                e.preventDefault();
-                saveServico(id);
-            });
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar o formulário de serviço.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o conteúdo da tela de Modalidades
- */
-function loadModalidadesContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de listagem de modalidades
-    fetch('/dexus-system/views/modalidades/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar o botão de nova modalidade
-            document.getElementById('btn-nova-modalidade').addEventListener('click', () => {
-                loadModalidadeForm();
-            });
-            
-            // Carregar os dados das modalidades
-            loadModalidadesData();
-            
-            // Configurar a busca de modalidades
-            setupModalidadeSearch();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a lista de modalidades.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o conteúdo da tela de Consultores
- */
-function loadConsultoresContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de listagem de consultores
-    fetch('/dexus-system/views/consultores/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar o botão de novo consultor
-            document.getElementById('btn-novo-consultor').addEventListener('click', () => {
-                loadConsultorForm();
-            });
-            
-            // Carregar os dados dos consultores
-            loadConsultoresData();
-            
-            // Configurar a busca de consultores
-            setupConsultorSearch();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a lista de consultores.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o conteúdo da tela de Ordens de Serviço
- */
-function loadOSContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de listagem de ordens de serviço
-    fetch('/dexus-system/views/os/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar o botão de nova OS
-            document.getElementById('btn-nova-os').addEventListener('click', () => {
-                loadOSForm();
-            });
-            
-            // Carregar os dados das ordens de serviço
-            loadOSData();
-            
-            // Configurar a busca de OS
-            setupOSSearch();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a lista de ordens de serviço.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o formulário de OS (novo ou edição)
- * @param {number} id - ID da OS a ser editada (opcional)
- */
-function loadOSForm(id = null) {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar o formulário de OS
-    fetch('/dexus-system/views/os/form.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Configurar validação do formulário
-            setupOSValidation();
-            
-            // Carregar dados para os selects
-            loadClientesSelect();
-            loadServicosSelect();
-            loadConsultoresSelect();
-            loadModalidadesSelect();
-            
-            // Se for edição, carregar os dados da OS
-            if (id) {
-                loadOSData(id);
-            } else {
-                // Configurar campos de data e hora
-                setupDateTimeFields();
-            }
-            
-            // Configurar o botão de voltar
-            document.getElementById('btn-voltar').addEventListener('click', () => {
-                loadOSContent();
-            });
-            
-            // Configurar o botão de salvar
-            document.getElementById('form-os').addEventListener('submit', (e) => {
-                e.preventDefault();
-                saveOS(id);
-            });
-            
-            // Configurar o cálculo automático do tempo total
-            setupTempoTotalCalculation();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar o formulário de OS.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Carrega o conteúdo da tela de Relação de OS
- */
-function loadRelacaoContent() {
-    const contentArea = document.getElementById('content-area');
-    
-    // Carregar a tela de relação de OS
-    fetch('/dexus-system/views/relacao/list.html')
-        .then(response => response.text())
-        .then(html => {
-            contentArea.innerHTML = html;
-            
-            // Carregar os dados da relação de OS
-            loadRelacaoData();
-            
-            // Configurar a busca e filtros
-            setupRelacaoFilters();
-        })
-        .catch(error => {
-            contentArea.innerHTML = '<div class="alert alert-danger">Erro ao carregar a relação de ordens de serviço.</div>';
-            console.error('Erro:', error);
-        });
-}
-
-/**
- * Exibe uma mensagem de alerta na tela
+ * Exibe um alerta na tela
  * @param {string} message - Mensagem a ser exibida
  * @param {string} type - Tipo de alerta (success, danger, warning, info)
- * @param {number} duration - Duração em milissegundos (0 para não fechar automaticamente)
+ * @param {boolean} autoClose - Se o alerta deve ser fechado automaticamente
  */
-function showAlert(message, type = 'info', duration = 5000) {
-    // Criar elemento de alerta
+function showAlert(message, type = 'info', autoClose = true) {
+    // Criar o elemento de alerta
     const alertElement = document.createElement('div');
-    alertElement.className = `alert alert-${type} alert-dismissible fade show`;
+    alertElement.className = `alert alert-${type} alert-dismissible fade show ${autoClose ? '' : 'alert-permanent'}`;
     alertElement.role = 'alert';
     
     alertElement.innerHTML = `
@@ -561,47 +50,311 @@ function showAlert(message, type = 'info', duration = 5000) {
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     `;
     
-    // Adicionar ao DOM
+    // Adicionar ao container de alertas
     const alertContainer = document.querySelector('.alert-container');
-    if (alertContainer) {
-        alertContainer.appendChild(alertElement);
-    } else {
-        const container = document.createElement('div');
-        container.className = 'alert-container position-fixed top-0 end-0 p-3';
-        container.style.zIndex = '1050';
-        container.appendChild(alertElement);
-        document.body.appendChild(container);
-    }
+    alertContainer.appendChild(alertElement);
     
-    // Configurar fechamento automático
-    if (duration > 0) {
+    // Fechar automaticamente após 5 segundos, se solicitado
+    if (autoClose) {
         setTimeout(() => {
-            alertElement.classList.remove('show');
-            setTimeout(() => {
-                alertElement.remove();
-            }, 150);
-        }, duration);
+            const bsAlert = bootstrap.Alert.getInstance(alertElement);
+            if (bsAlert) {
+                bsAlert.close();
+            } else {
+                alertElement.classList.remove('show');
+                setTimeout(() => {
+                    alertElement.remove();
+                }, 150);
+            }
+        }, 5000);
     }
     
-    // Criar alerta do Bootstrap
-    const bsAlert = new bootstrap.Alert(alertElement);
-    
-    // Retornar referência para manipulação externa
-    return {
-        element: alertElement,
-        close: () => bsAlert.close()
-    };
+    return alertElement;
 }
 
 /**
- * Verifica a conexão com o banco de dados
- * @returns {Promise} Promessa com o resultado da verificação
+ * Exibe um diálogo de confirmação
+ * @param {string} message - Mensagem a ser exibida
+ * @param {Function} onConfirm - Função a ser executada se confirmado
+ * @param {Function} onCancel - Função a ser executada se cancelado
+ * @param {string} confirmText - Texto do botão de confirmação
+ * @param {string} cancelText - Texto do botão de cancelamento
  */
-function checkDatabaseConnection() {
-    return new Promise((resolve, reject) => {
-        // Simular verificação de conexão com o banco
-        setTimeout(() => {
-            resolve({ success: true, message: 'Conexão estabelecida com sucesso' });
-        }, 500);
+function showConfirm(message, onConfirm, onCancel = null, confirmText = 'Confirmar', cancelText = 'Cancelar') {
+    // Verificar se já existe um modal de confirmação
+    let modal = document.getElementById('confirm-modal');
+    
+    // Se não existir, criar um novo
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'confirm-modal';
+        modal.tabIndex = '-1';
+        modal.setAttribute('aria-labelledby', 'confirm-modal-label');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirm-modal-label">Confirmação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body" id="confirm-modal-message">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirm-modal-cancel"></button>
+                        <button type="button" class="btn btn-primary" id="confirm-modal-confirm"></button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+    
+    // Configurar mensagem e botões
+    document.getElementById('confirm-modal-message').innerHTML = message;
+    document.getElementById('confirm-modal-confirm').textContent = confirmText;
+    document.getElementById('confirm-modal-cancel').textContent = cancelText;
+    
+    // Remover event listeners antigos
+    const confirmButton = document.getElementById('confirm-modal-confirm');
+    const cancelButton = document.getElementById('confirm-modal-cancel');
+    
+    const newConfirmButton = confirmButton.cloneNode(true);
+    const newCancelButton = cancelButton.cloneNode(true);
+    
+    confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+    cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+    
+    // Adicionar event listeners
+    newConfirmButton.addEventListener('click', function() {
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+        bootstrap.Modal.getInstance(modal).hide();
+    });
+    
+    newCancelButton.addEventListener('click', function() {
+        if (typeof onCancel === 'function') {
+            onCancel();
+        }
+    });
+    
+    // Exibir o modal
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+}
+
+/**
+ * Função para formatar data (YYYY-MM-DD para DD/MM/YYYY)
+ * @param {string} dateString - Data no formato YYYY-MM-DD
+ * @return {string} - Data formatada DD/MM/YYYY
+ */
+function formatDate(dateString) {
+    if (!dateString) return '';
+    
+    // Verificar se já está formatado
+    if (dateString.includes('/')) return dateString;
+    
+    // Converter formato YYYY-MM-DD para DD/MM/YYYY
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+/**
+ * Formatar data para banco de dados (DD/MM/YYYY para YYYY-MM-DD)
+ * @param {string} dateString - Data no formato DD/MM/YYYY
+ * @return {string} - Data formatada YYYY-MM-DD
+ */
+function formatDateDB(dateString) {
+    if (!dateString) return '';
+    
+    // Verificar se já está formatado
+    if (dateString.includes('-')) return dateString;
+    
+    // Converter formato DD/MM/YYYY para YYYY-MM-DD
+    const parts = dateString.split('/');
+    if (parts.length !== 3) return dateString;
+    
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
+/**
+ * Formatar valor monetário
+ * @param {number} value - Valor a ser formatado
+ * @return {string} - Valor formatado (R$ 0,00)
+ */
+function formatMoney(value) {
+    if (value === null || value === undefined) return '';
+    
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value);
+}
+
+/**
+ * Formatar CPF/CNPJ
+ * @param {string} doc - Documento a ser formatado
+ * @param {string} type - Tipo de documento (F ou J)
+ * @return {string} - Documento formatado
+ */
+function formatDocument(doc, type) {
+    if (!doc) return '';
+    
+    // Remover caracteres não numéricos
+    doc = doc.replace(/\D/g, '');
+    
+    if (type === 'F' || doc.length <= 11) {
+        // CPF: 000.000.000-00
+        return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else {
+        // CNPJ: 00.000.000/0000-00
+        return doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+}
+
+/**
+ * Configurar máscaras para os campos
+ */
+function setupMasks() {
+    // Máscara de CPF
+    document.querySelectorAll('.cpf-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            this.value = value;
+        });
+    });
+    
+    // Máscara de CNPJ
+    document.querySelectorAll('.cnpj-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            value = value.replace(/(\d{2})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1/$2');
+            value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+            this.value = value;
+        });
+    });
+    
+    // Máscara de CPF/CNPJ
+    document.querySelectorAll('.cpf-cnpj-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            if (value.length <= 11) {
+                // CPF
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            } else {
+                // CNPJ
+                value = value.replace(/(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1/$2');
+                value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+            }
+            
+            this.value = value;
+        });
+    });
+    
+    // Máscara de telefone
+    document.querySelectorAll('.phone-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            if (value.length > 10) {
+                // Celular
+                value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else {
+                // Telefone fixo
+                value = value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            }
+            
+            this.value = value;
+        });
+    });
+    
+    // Máscara de data
+    document.querySelectorAll('.date-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            value = value.replace(/(\d{2})(\d)/, '$1/$2');
+            value = value.replace(/(\d{2})(\d)/, '$1/$2');
+            value = value.replace(/(\d{4})(\d)/, '$1');
+            
+            this.value = value;
+        });
+    });
+    
+    // Máscara de hora
+    document.querySelectorAll('.time-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            value = value.replace(/(\d{2})(\d)/, '$1:$2');
+            value = value.replace(/(\d{2})(?:\d+)?/, '$1');
+            
+            this.value = value;
+        });
+    });
+    
+    // Máscara de moeda
+    document.querySelectorAll('.currency-mask').forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            if (value === '') {
+                this.value = '';
+                return;
+            }
+            
+            value = parseFloat(value) / 100;
+            
+            this.value = value.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        });
+    });
+}
+
+/**
+ * Limpar máscaras de um formulário antes de enviar
+ * @param {HTMLFormElement} form - Formulário a ser tratado
+ */
+function clearMasks(form) {
+    // CPF/CNPJ
+    form.querySelectorAll('.cpf-mask, .cnpj-mask, .cpf-cnpj-mask').forEach(input => {
+        input.value = input.value.replace(/\D/g, '');
+    });
+    
+    // Telefone
+    form.querySelectorAll('.phone-mask').forEach(input => {
+        input.value = input.value.replace(/\D/g, '');
+    });
+    
+    // Data
+    form.querySelectorAll('.date-mask').forEach(input => {
+        const value = input.value;
+        if (value) {
+            input.value = formatDateDB(value);
+        }
+    });
+    
+    // Moeda
+    form.querySelectorAll('.currency-mask').forEach(input => {
+        const value = input.value.replace(/[^\d,]/g, '').replace(',', '.');
+        input.value = value;
     });
 }

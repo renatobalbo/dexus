@@ -1,23 +1,270 @@
 <?php
 /**
- * Funções utilitárias para operações de banco de dados
- * Sistema de Gestão Dexus
+ * Dexus - Sistema de Gestão
+ * Conexão com o banco de dados
  */
 
 /**
- * Formata um valor para a consulta SQL conforme o tipo
- * @param mixed $value Valor a ser formatado
- * @return string Valor formatado para SQL
+ * Obtém uma conexão com o banco de dados
+ * @return PDO Conexão PDO com o banco de dados
  */
-function formatSqlValue($value) {
-    if (is_null($value)) {
-        return 'NULL';
-    } elseif (is_bool($value)) {
-        return $value ? '1' : '0';
-    } elseif (is_numeric($value)) {
-        return $value;
-    } else {
-        return "'" . addslashes($value) . "'";
+function getConnection() {
+    static $connection = null;
+    
+    if ($connection === null) {
+        try {
+            // Criar conexão PDO
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
+            ];
+            
+            $connection = new PDO($dsn, DB_USER, DB_PASS, $options);
+        } catch (PDOException $e) {
+            // Registrar erro
+            error_log('Erro de conexão: ' . $e->getMessage());
+            
+            // Retornar null em caso de erro
+            return null;
+        }
+    }
+    
+    return $connection;
+}
+
+/**
+ * Executa uma consulta SQL
+ * @param string $sql Consulta SQL
+ * @param array $params Parâmetros da consulta
+ * @return array|false Resultado da consulta ou false em caso de erro
+ */
+function executeQuery($sql, $params = []) {
+    $conn = getConnection();
+    
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
+        
+        return $stmt;
+    } catch (PDOException $e) {
+        // Registrar erro
+        error_log('Erro ao executar consulta: ' . $e->getMessage());
+        error_log('SQL: ' . $sql);
+        error_log('Params: ' . json_encode($params));
+        
+        return false;
+    }
+}
+
+/**
+ * Obtém um único registro do banco de dados
+ * @param string $sql Consulta SQL
+ * @param array $params Parâmetros da consulta
+ * @return array|false Registro encontrado ou false em caso de erro
+ */
+function fetchOne($sql, $params = []) {
+    $stmt = executeQuery($sql, $params);
+    
+    if ($stmt === false) {
+        return false;
+    }
+    
+    return $stmt->fetch();
+}
+
+/**
+ * Obtém múltiplos registros do banco de dados
+ * @param string $sql Consulta SQL
+ * @param array $params Parâmetros da consulta
+ * @return array|false Registros encontrados ou false em caso de erro
+ */
+function fetchAll($sql, $params = []) {
+    $stmt = executeQuery($sql, $params);
+    
+    if ($stmt === false) {
+        return false;
+    }
+    
+    return $stmt->fetchAll();
+}
+
+/**
+ * Insere um registro no banco de dados
+ * @param string $table Nome da tabela
+ * @param array $data Dados a serem inseridos
+ * @return int|false ID do registro inserido ou false em caso de erro
+ */
+function insert($table, $data) {
+    $conn = getConnection();
+    
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        // Montar campos e valores
+        $fields = array_keys($data);
+        $placeholders = array_map(function($field) {
+            return ':' . $field;
+        }, $fields);
+        
+        // Montar SQL
+        $sql = "INSERT INTO {$table} (" . implode(', ', $fields) . ") 
+                VALUES (" . implode(', ', $placeholders) . ")";
+        
+        // Executar
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($data);
+        
+        // Retornar ID inserido
+        return $conn->lastInsertId();
+    } catch (PDOException $e) {
+        // Registrar erro
+        error_log('Erro ao inserir: ' . $e->getMessage());
+        error_log('Tabela: ' . $table);
+        error_log('Dados: ' . json_encode($data));
+        
+        return false;
+    }
+}
+
+/**
+ * Atualiza um registro no banco de dados
+ * @param string $table Nome da tabela
+ * @param array $data Dados a serem atualizados
+ * @param string $condition Condição WHERE
+ * @param array $params Parâmetros adicionais da condição
+ * @return int|false Número de registros atualizados ou false em caso de erro
+ */
+function update($table, $data, $condition, $params = []) {
+    $conn = getConnection();
+    
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        // Montar campos e valores para SET
+        $setClauses = [];
+        foreach ($data as $field => $value) {
+            $setClauses[] = "{$field} = :set_{$field}";
+            $params["set_{$field}"] = $value;
+        }
+        
+        // Montar SQL
+        $sql = "UPDATE {$table} SET " . implode(', ', $setClauses) . " WHERE {$condition}";
+        
+        // Executar
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
+        
+        // Retornar número de registros afetados
+        return $stmt->rowCount();
+    } catch (PDOException $e) {
+        // Registrar erro
+        error_log('Erro ao atualizar: ' . $e->getMessage());
+        error_log('SQL: ' . $sql);
+        error_log('Params: ' . json_encode($params));
+        
+        return false;
+    }
+}
+
+/**
+ * Remove um registro do banco de dados
+ * @param string $table Nome da tabela
+ * @param string $condition Condição WHERE
+ * @param array $params Parâmetros da condição
+ * @return int|false Número de registros removidos ou false em caso de erro
+ */
+function delete($table, $condition, $params = []) {
+    $conn = getConnection();
+    
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        // Montar SQL
+        $sql = "DELETE FROM {$table} WHERE {$condition}";
+        
+        // Executar
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
+        
+        // Retornar número de registros afetados
+        return $stmt->rowCount();
+    } catch (PDOException $e) {
+        // Registrar erro
+        error_log('Erro ao excluir: ' . $e->getMessage());
+        error_log('SQL: ' . $sql);
+        error_log('Params: ' . json_encode($params));
+        
+        return false;
+    }
+}
+
+/**
+ * Inicia uma transação
+ * @return PDO|false Conexão com a transação ou false em caso de erro
+ */
+function beginTransaction() {
+    $conn = getConnection();
+    
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        $conn->beginTransaction();
+        return $conn;
+    } catch (PDOException $e) {
+        error_log('Erro ao iniciar transação: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Confirma uma transação
+ * @param PDO $conn Conexão com a transação
+ * @return bool Indica se a transação foi confirmada com sucesso
+ */
+function commitTransaction($conn) {
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        $conn->commit();
+        return true;
+    } catch (PDOException $e) {
+        error_log('Erro ao confirmar transação: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Desfaz uma transação
+ * @param PDO $conn Conexão com a transação
+ * @return bool Indica se a transação foi desfeita com sucesso
+ */
+function rollbackTransaction($conn) {
+    if (!$conn) {
+        return false;
+    }
+    
+    try {
+        $conn->rollBack();
+        return true;
+    } catch (PDOException $e) {
+        error_log('Erro ao desfazer transação: ' . $e->getMessage());
+        return false;
     }
 }
 
@@ -143,303 +390,4 @@ function buildWhereClause($filters, &$params, $options = array()) {
     
     return implode(' AND ', $whereConditions);
 }
-
-/**
- * Constrói uma cláusula ORDER BY com base em um array de ordenação
- * @param array $orderBy Array de campos para ordenação e direção
- * @return string Cláusula ORDER BY formatada
- */
-function buildOrderByClause($orderBy) {
-    if (empty($orderBy)) {
-        return '';
-    }
-    
-    $orderClauses = array();
-    
-    foreach ($orderBy as $field => $direction) {
-        $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $orderClauses[] = "$field $direction";
-    }
-    
-    if (empty($orderClauses)) {
-        return '';
-    }
-    
-    return 'ORDER BY ' . implode(', ', $orderClauses);
-}
-
-/**
- * Verifica se uma tabela existe no banco de dados
- * @param string $tableName Nome da tabela
- * @return bool Indica se a tabela existe
- */
-function tableExists($tableName) {
-    $conn = getConnection();
-    
-    if (!$conn) {
-        return false;
-    }
-    
-    try {
-        // Verificar se a tabela existe
-        $sql = "SHOW TABLES LIKE :tableName";
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([':tableName' => $tableName]);
-        
-        return $stmt->rowCount() > 0;
-    } catch (PDOException $e) {
-        // Registrar erro
-        error_log('Erro ao verificar tabela: ' . $e->getMessage());
-        
-        return false;
-    } finally {
-        // Fechar conexão
-        $conn = null;
-    }
-}
-
-/**
- * Obtém informações sobre as colunas de uma tabela
- * @param string $tableName Nome da tabela
- * @return array|false Informações das colunas ou false em caso de erro
- */
-function getTableColumns($tableName) {
-    $conn = getConnection();
-    
-    if (!$conn) {
-        return false;
-    }
-    
-    try {
-        // Obter informações das colunas
-        $sql = "SHOW COLUMNS FROM $tableName";
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        // Registrar erro
-        error_log('Erro ao obter colunas da tabela: ' . $e->getMessage());
-        
-        return false;
-    } finally {
-        // Fechar conexão
-        $conn = null;
-    }
-}
-
-/**
- * Verifica se uma coluna existe em uma tabela
- * @param string $tableName Nome da tabela
- * @param string $columnName Nome da coluna
- * @return bool Indica se a coluna existe
- */
-function columnExists($tableName, $columnName) {
-    $columns = getTableColumns($tableName);
-    
-    if ($columns === false) {
-        return false;
-    }
-    
-    foreach ($columns as $column) {
-        if ($column['Field'] === $columnName) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-/**
- * Sanitiza um nome de tabela ou coluna para prevenir SQL injection
- * @param string $name Nome a ser sanitizado
- * @return string Nome sanitizado
- */
-function sanitizeTableName($name) {
-    // Remover caracteres não alfanuméricos e underscore
-    $name = preg_replace('/[^\w]/', '', $name);
-    
-    // Verificar se o nome não está vazio
-    if (empty($name)) {
-        return 'invalid_name';
-    }
-    
-    return $name;
-}
-
-/**
- * Importa dados de um CSV para uma tabela do banco de dados
- * @param string $filename Caminho do arquivo CSV
- * @param string $tableName Nome da tabela
- * @param array $columnMap Mapeamento de colunas CSV para colunas da tabela
- * @param bool $hasHeader Indica se o CSV tem cabeçalho
- * @return array Resultado da importação
- */
-function importCSVToTable($filename, $tableName, $columnMap = array(), $hasHeader = true) {
-    // Inicializar resposta
-    $response = array(
-        'success' => false,
-        'message' => '',
-        'imported' => 0,
-        'failed' => 0
-    );
-    
-    // Verificar se o arquivo existe
-    if (!file_exists($filename)) {
-        $response['message'] = 'Arquivo não encontrado.';
-        return $response;
-    }
-    
-    // Verificar se a tabela existe
-    if (!tableExists($tableName)) {
-        $response['message'] = 'Tabela não encontrada.';
-        return $response;
-    }
-    
-    // Abrir arquivo
-    $file = fopen($filename, 'r');
-    if (!$file) {
-        $response['message'] = 'Erro ao abrir arquivo.';
-        return $response;
-    }
-    
-    // Ler cabeçalho se necessário
-    $headers = array();
-    if ($hasHeader) {
-        $headers = fgetcsv($file);
-        
-        // Validar cabeçalho
-        if ($headers === false) {
-            fclose($file);
-            $response['message'] = 'Erro ao ler cabeçalho do arquivo.';
-            return $response;
-        }
-        
-        // Sanitizar cabeçalhos
-        foreach ($headers as &$header) {
-            $header = trim($header);
-        }
-    }
-    
-    // Obter colunas da tabela
-    $tableColumns = getTableColumns($tableName);
-    if ($tableColumns === false) {
-        fclose($file);
-        $response['message'] = 'Erro ao obter estrutura da tabela.';
-        return $response;
-    }
-    
-    $validColumns = array();
-    foreach ($tableColumns as $column) {
-        $validColumns[] = $column['Field'];
-    }
-    
-    // Iniciar transação
-    $conn = beginTransaction();
-    if (!$conn) {
-        fclose($file);
-        $response['message'] = 'Erro ao iniciar transação.';
-        return $response;
-    }
-    
-    try {
-        $imported = 0;
-        $failed = 0;
-        $lineNumber = $hasHeader ? 2 : 1; // Iniciar da linha 2 se tiver cabeçalho
-        
-        // Ler registros
-        while (($data = fgetcsv($file)) !== false) {
-            // Verificar se o registro tem dados
-            if (empty($data) || count($data) === 1 && empty($data[0])) {
-                $lineNumber++;
-                continue;
-            }
-            
-            // Mapear colunas
-            $record = array();
-            
-            // Se tiver cabeçalho e mapeamento de colunas
-            if ($hasHeader && !empty($columnMap)) {
-                foreach ($columnMap as $csvColumn => $dbColumn) {
-                    // Verificar se a coluna existe no CSV
-                    $columnIndex = array_search($csvColumn, $headers);
-                    if ($columnIndex !== false && in_array($dbColumn, $validColumns)) {
-                        $record[$dbColumn] = isset($data[$columnIndex]) ? $data[$columnIndex] : null;
-                    }
-                }
-            }
-            // Se tiver cabeçalho mas não tiver mapeamento, usar cabeçalho como mapeamento
-            elseif ($hasHeader) {
-                foreach ($headers as $i => $header) {
-                    if (in_array($header, $validColumns) && isset($data[$i])) {
-                        $record[$header] = $data[$i];
-                    }
-                }
-            }
-            // Se não tiver cabeçalho mas tiver mapeamento, usar índices
-            elseif (!empty($columnMap)) {
-                foreach ($columnMap as $csvColumnIndex => $dbColumn) {
-                    if (is_numeric($csvColumnIndex) && in_array($dbColumn, $validColumns)) {
-                        $record[$dbColumn] = isset($data[$csvColumnIndex]) ? $data[$csvColumnIndex] : null;
-                    }
-                }
-            }
-            
-            // Verificar se tem dados para inserir
-            if (empty($record)) {
-                $failed++;
-                $lineNumber++;
-                continue;
-            }
-            
-            // Construir query de inserção
-            $columns = array_keys($record);
-            $placeholders = array_map(function($col) { return ":$col"; }, $columns);
-            
-            $sql = "INSERT INTO $tableName (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
-            
-            // Preparar params
-            $params = array();
-            foreach ($record as $column => $value) {
-                $params[":$column"] = $value;
-            }
-            
-            // Executar query
-            $result = executeQuery($sql, $params);
-            
-            if ($result === false) {
-                $failed++;
-            } else {
-                $imported++;
-            }
-            
-            $lineNumber++;
-        }
-        
-        // Fechar arquivo
-        fclose($file);
-        
-        // Confirmar transação
-        if (!commitTransaction($conn)) {
-            throw new Exception('Erro ao confirmar transação.');
-        }
-        
-        // Retornar resposta
-        $response['success'] = true;
-        $response['message'] = "Importação concluída. $imported registros importados, $failed falhas.";
-        $response['imported'] = $imported;
-        $response['failed'] = $failed;
-        
-        return $response;
-    } catch (Exception $e) {
-        // Fechar arquivo
-        fclose($file);
-        
-        // Desfazer transação
-        rollbackTransaction($conn);
-        
-        // Retornar erro
-        $response['message'] = $e->getMessage();
-        return $response;
-    }
-}
+?>
