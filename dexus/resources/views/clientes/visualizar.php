@@ -10,8 +10,8 @@ if (!$id) {
 
 // Buscar dados do cliente
 $sql = "SELECT c.*, m.MODDES 
-        FROM clientes c
-        LEFT JOIN modalidades m ON c.CLIMOD = m.MODCOD
+        FROM CADCLI c
+        LEFT JOIN CADMOD m ON c.CLIMOD = m.MODCOD
         WHERE c.CLICOD = :id";
 
 $cliente = fetchOne($sql, [':id' => $id]);
@@ -118,11 +118,11 @@ $pageTitle = 'Detalhes do Cliente: ' . $cliente['CLIRAZ'];
                             <?php
                             // Buscar as últimas 5 OS do cliente
                             $sql = "SELECT o.OSNUM, o.OSDATA, s.SERDES
-                                   FROM ordens_servico o
-                                   JOIN servicos s ON o.OSSERCOD = s.SERCOD
+                                   FROM ORDSER o
+                                   JOIN CADSER s ON o.OSSERCOD = s.SERCOD
                                    WHERE o.OSCLICOD = :id
                                    ORDER BY o.OSDATA DESC, o.OSNUM DESC
-                                   LIMIT 5";
+                                   OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY";
                             
                             $ordens = fetchAll($sql, [':id' => $id]);
                             
@@ -149,68 +149,6 @@ $pageTitle = 'Detalhes do Cliente: ' . $cliente['CLIRAZ'];
                                 }
                             } else {
                                 echo '<p class="text-center">Nenhuma OS encontrada para este cliente.</p>';
-                            }
-                            ?>
-                        </div>
-                    </div>
-                    
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h6 class="mb-0">Estatísticas</h6>
-                        </div>
-                        <div class="card-body">
-                            <?php
-                            // Buscar estatísticas do cliente
-                            $sql = "SELECT 
-                                   COUNT(o.OSNUM) as total_os,
-                                   SUM(CASE WHEN r.RELOSFAT = 'S' THEN 1 ELSE 0 END) as faturadas,
-                                   SUM(CASE WHEN r.RELOSCOB = 'S' THEN 1 ELSE 0 END) as cobradas
-                                   FROM ordens_servico o
-                                   LEFT JOIN relacao_os r ON o.OSNUM = r.RELOSNUM
-                                   WHERE o.OSCLICOD = :id";
-                            
-                            $estatisticas = fetchOne($sql, [':id' => $id]);
-                            
-                            if ($estatisticas) {
-                                $totalOS = $estatisticas['total_os'] ?? 0;
-                                $faturadas = $estatisticas['faturadas'] ?? 0;
-                                $cobradas = $estatisticas['cobradas'] ?? 0;
-                                
-                                $percFaturadas = $totalOS > 0 ? round(($faturadas / $totalOS) * 100) : 0;
-                                $percCobradas = $totalOS > 0 ? round(($cobradas / $totalOS) * 100) : 0;
-                                
-                                // Exibir estatísticas
-                                echo '<div class="row text-center">';
-                                echo '<div class="col-12 mb-3">';
-                                echo '<h1 class="h4">' . $totalOS . '</h1>';
-                                echo '<p class="mb-0">Ordens de Serviço</p>';
-                                echo '</div>';
-                                echo '</div>';
-                                
-                                // Faturamento e cobrança
-                                if ($totalOS > 0) {
-                                    echo '<div class="row mb-2">';
-                                    echo '<div class="col-6">';
-                                    echo '<p class="mb-1">Faturadas:</p>';
-                                    echo '<div class="progress">';
-                                    echo '<div class="progress-bar bg-success" role="progressbar" style="width: ' . $percFaturadas . '%;">' . $percFaturadas . '%</div>';
-                                    echo '</div>';
-                                    echo '</div>';
-                                    echo '<div class="col-6">';
-                                    echo '<p class="mb-1">Cobradas:</p>';
-                                    echo '<div class="progress">';
-                                    echo '<div class="progress-bar bg-info" role="progressbar" style="width: ' . $percCobradas . '%;">' . $percCobradas . '%</div>';
-                                    echo '</div>';
-                                    echo '</div>';
-                                    echo '</div>';
-                                }
-                                
-                                // Link para relatório completo
-                                echo '<div class="mt-3 text-center">';
-                                echo '<a href="?page=relacao&cliente=' . $id . '" class="btn btn-sm btn-outline-primary">Relatório Completo</a>';
-                                echo '</div>';
-                            } else {
-                                echo '<p class="text-center">Sem dados estatísticos disponíveis.</p>';
                             }
                             ?>
                         </div>

@@ -3,5 +3,5 @@
 $pageTitle = 'Clientes';
 
 // Incluir a listagem de clientes
-include BASE_PATH . '/resources/views/clientes/list.html';
+include BASE_PATH . '/resources/views/clientes/list.php';
 ?>

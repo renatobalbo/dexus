@@ -8,8 +8,8 @@ $visualizacao = isset($_GET['visualizar']) && $_GET['visualizar'] === '1';
 $cliente = [];
 if ($edicao) {
     $sql = "SELECT c.*, m.MODDES 
-            FROM clientes c
-            LEFT JOIN modalidades m ON c.CLIMOD = m.MODCOD
+            FROM CADCLI c
+            LEFT JOIN CADMOD m ON c.CLIMOD = m.MODCOD
             WHERE c.CLICOD = :id";
     
     $cliente = fetchOne($sql, [':id' => $id]);
@@ -95,7 +95,7 @@ if ($visualizacao) {
                                 <option value="">Selecione...</option>
                                 <?php
                                 // Buscar modalidades no banco
-                                $sql = "SELECT MODCOD, MODDES FROM modalidades ORDER BY MODDES";
+                                $sql = "SELECT MODCOD, MODDES FROM CADMOD ORDER BY MODDES";
                                 $modalidades = fetchAll($sql);
                                 
                                 if ($modalidades) {
@@ -225,106 +225,119 @@ if ($visualizacao) {
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Configurar validação do formulário
-    const form = document.getElementById('form-cliente');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Validar formulário
-            if (validarFormCliente()) {
-                // Limpar máscaras antes de enviar
-                const tipoPessoa = document.getElementById('CLITIP').value;
-                const cpfCnpj = document.getElementById('CLIDOC');
-                if (cpfCnpj.value) {
-                    cpfCnpj.value = cpfCnpj.value.replace(/\D/g, '');
-                }
-                
-                const valorHora = document.getElementById('CLIVAL');
-                if (valorHora.value) {
-                    valorHora.value = valorHora.value.replace(/[^\d,]/g, '').replace(',', '.');
-                }
-                
-                // Serializar dados do formulário
-                const data = {
-                    action: 'salvar_cliente'
-                };
-                
-                // Adicionar campos ao objeto de dados
-                const formData = new FormData(form);
-                formData.forEach(function(value, key) {
-                    data[key] = value;
-                });
-                
-                // Enviar requisição
-                salvarCliente(data)
-                    .then(response => {
-                        if (response.success) {
-                            showAlert(response.message, 'success');
-                            
-                            // Redirecionar para a listagem após 1,5 segundos
-                            setTimeout(() => {
-                                window.location.href = '?page=clientes';
-                            }, 1500);
-                        } else {
-                            showAlert(response.message, 'danger');
-                        }
-                    })
-                    .catch(error => {
-                        showAlert('Erro ao salvar cliente: ' + error.message, 'danger');
-                    });
-            }
-        });
-    }
-    
-    // Configurar consulta de CPF/CNPJ
-    const btnConsultarDoc = document.getElementById('btn-consultar-doc');
-    if (btnConsultarDoc) {
-        btnConsultarDoc.addEventListener('click', function() {
-            const documento = document.getElementById('CLIDOC').value;
-            const tipo = document.getElementById('CLITIP').value;
-            
-            if (!documento || !tipo) {
-                showAlert('Informe o tipo de pessoa e o documento para consultar.', 'warning');
-                return;
-            }
-            
-            // Limpar caracteres não numéricos para a consulta
-            const docLimpo = documento.replace(/\D/g, '');
-            
-            // Exibir loader
-            showLoader('Consultando documento, aguarde...');
-            
-            // Simular consulta (em um ambiente real, seria uma chamada à API)
-            // Aqui apenas iremos preencher alguns campos aleatórios
-            setTimeout(() => {
-                if (tipo === 'F') {
-                    // Pessoa física
-                    document.getElementById('CLIRAZ').value = 'PESSOA FÍSICA EXEMPLO';
-                    document.getElementById('CLIFAN').value = '';
-                    document.getElementById('CLIMUN').value = 'SÃO PAULO';
-                    document.getElementById('CLIEST').value = 'SP';
-                } else {
-                    // Pessoa jurídica
-                    document.getElementById('CLIRAZ').value = 'EMPRESA EXEMPLO LTDA';
-                    document.getElementById('CLIFAN').value = 'EXEMPLO';
-                    document.getElementById('CLIMUN').value = 'SÃO PAULO';
-                    document.getElementById('CLIEST').value = 'SP';
-                }
-                
-                // Ocultar loader
-                hideLoader();
-                
-                showAlert('Documento consultado com sucesso!', 'success');
-            }, 1500);
-        });
-    }
-    
     // Configurar campo CPF/CNPJ conforme o tipo de pessoa
-    configurarCampoCPFCNPJ();
-    
-    // Configurar máscaras
-    setupMasks();
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoPessoa = document.getElementById('CLITIP');
+        const cpfCnpj = document.getElementById('CLIDOC');
+        const labelCpfCnpj = document.querySelector('label[for="CLIDOC"]');
+        
+        if (tipoPessoa && cpfCnpj && labelCpfCnpj) {
+            // Configurar inicialmente com base no valor selecionado
+            if (tipoPessoa.value === 'F') {
+                labelCpfCnpj.innerText = 'CPF:';
+                cpfCnpj.setAttribute('placeholder', '000.000.000-00');
+            } else if (tipoPessoa.value === 'J') {
+                labelCpfCnpj.innerText = 'CNPJ:';
+                cpfCnpj.setAttribute('placeholder', '00.000.000/0000-00');
+            }
+            
+            // Adicionar evento de mudança
+            tipoPessoa.addEventListener('change', function() {
+                if (this.value === 'F') {
+                    // Pessoa Física - CPF
+                    labelCpfCnpj.innerText = 'CPF:';
+                    cpfCnpj.setAttribute('placeholder', '000.000.000-00');
+                } else if (this.value === 'J') {
+                    // Pessoa Jurídica - CNPJ
+                    labelCpfCnpj.innerText = 'CNPJ:';
+                    cpfCnpj.setAttribute('placeholder', '00.000.000/0000-00');
+                } else {
+                    // Tipo não definido
+                    labelCpfCnpj.innerText = 'CPF/CNPJ:';
+                    cpfCnpj.setAttribute('placeholder', '');
+                }
+                
+                // Limpar campo
+                cpfCnpj.value = '';
+            });
+        }
+        
+        // Configurar consulta de CPF/CNPJ
+        const btnConsultarDoc = document.getElementById('btn-consultar-doc');
+        if (btnConsultarDoc) {
+            btnConsultarDoc.addEventListener('click', function() {
+                const documento = document.getElementById('CLIDOC').value;
+                const tipo = document.getElementById('CLITIP').value;
+                
+                if (!documento || !tipo) {
+                    alert('Informe o tipo de pessoa e o documento para consultar.');
+                    return;
+                }
+                
+                // Limpar caracteres não numéricos para a consulta
+                const docLimpo = documento.replace(/\D/g, '');
+                
+                // Exibir loader
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                this.disabled = true;
+                
+                // Simular consulta (em um ambiente real, seria uma chamada à API)
+                setTimeout(() => {
+                    // Simular dados retornados
+                    if (tipo === 'F') {
+                        document.getElementById('CLIRAZ').value = 'PESSOA FÍSICA TESTE';
+                        document.getElementById('CLIFAN').value = '';
+                        document.getElementById('CLIMUN').value = 'SÃO PAULO';
+                        document.getElementById('CLIEST').value = 'SP';
+                    } else {
+                        document.getElementById('CLIRAZ').value = 'EMPRESA TESTE LTDA';
+                        document.getElementById('CLIFAN').value = 'EMPRESA TESTE';
+                        document.getElementById('CLIMUN').value = 'SÃO PAULO';
+                        document.getElementById('CLIEST').value = 'SP';
+                    }
+                    
+                    // Restaurar botão
+                    this.innerHTML = '<i class="fas fa-search"></i>';
+                    this.disabled = false;
+                    
+                    alert('Dados consultados com sucesso!');
+                }, 1000);
+            });
+        }
+        
+        // Aplicar máscara para CPF/CNPJ
+        document.querySelectorAll('.cpf-cnpj-mask').forEach(input => {
+            input.addEventListener('input', function() {
+                const tipo = document.getElementById('CLITIP').value;
+                let v = this.value.replace(/\D/g, '');
+                
+                if (tipo === 'F') {
+                    // CPF: 000.000.000-00
+                    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                } else if (tipo === 'J') {
+                    // CNPJ: 00.000.000/0000-00
+                    v = v.replace(/(\d{2})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d)/, '$1/$2');
+                    v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+                }
+                
+                this.value = v;
+            });
+        });
+        
+        // Aplicar máscara para valor
+        document.querySelectorAll('.currency-mask').forEach(input => {
+            input.addEventListener('input', function() {
+                let v = this.value.replace(/\D/g, '');
+                v = (parseInt(v) / 100).toFixed(2) + '';
+                v = v.replace(".", ",");
+                v = v.replace(/(\d)(\d{3})(\,)/g, "$1.$2$3");
+                v = v.replace(/(\d)(\d{3})(\.\d{3})/g, "$1.$2$3");
+                this.value = v;
+            });
+        });
+    });
 </script>
