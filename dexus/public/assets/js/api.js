@@ -393,3 +393,62 @@ function gerarRelacaoPDF(filtros = {}) {
 function exportarRelacaoExcel(filtros = {}) {
     return apiRequest('exportar_relacao_excel', filtros);
 }
+
+/**
+ * Funções de API para Clientes
+ */
+
+/**
+ * Lista clientes com paginação e filtros
+ * @param {object} filtros - Filtros a serem aplicados
+ * @return {Promise} - Promessa com a lista de clientes
+ */
+function fetchClientes(filtros = {}) {
+    return apiRequest('listar_clientes', filtros);
+}
+
+/**
+ * Obtém dados de um cliente específico
+ * @param {number} id - ID do cliente
+ * @return {Promise} - Promessa com os dados do cliente
+ */
+function fetchCliente(id) {
+    return apiRequest('obter_cliente', { id });
+}
+
+/**
+ * Salva (insere/atualiza) um cliente
+ * @param {object} data - Dados do cliente
+ * @return {Promise} - Promessa com o resultado da operação
+ */
+function salvarCliente(data) {
+    return apiRequest('salvar_cliente', data, 'POST');
+}
+
+/**
+ * Exclui um cliente
+ * @param {number} id - ID do cliente
+ * @return {Promise} - Promessa com o resultado da operação
+ */
+function deleteCliente(id) {
+    return apiRequest('excluir_cliente', { id }, 'DELETE');
+}
+
+/**
+ * Verifica se um cliente pode ser excluído
+ * @param {number} id - ID do cliente
+ * @return {Promise} - Promessa com o resultado da verificação
+ */
+function canDeleteCliente(id) {
+    return apiRequest('verificar_cliente_uso', { id });
+}
+
+/**
+ * Consulta dados de um documento (CPF/CNPJ)
+ * @param {string} documento - Número do documento
+ * @param {string} tipo - Tipo do documento (F para CPF, J para CNPJ)
+ * @return {Promise} - Promessa com os dados consultados
+ */
+function consultarDocumento(documento, tipo) {
+    return apiRequest('consultar_documento', { documento, tipo }, 'POST');
+}

@@ -347,4 +347,110 @@ function getUserProfile() {
 
 /**
  * Verifica se o usuário tem permissão para a ação
- *
+ * @param string $action Ação a ser verificada
+ * @return bool Verdadeiro se o usuário tem permissão
+ */
+function userHasPermission($action) {
+    // Se o usuário é admin, tem permissão para tudo
+    if (getUserProfile() === 'admin') {
+        return true;
+    }
+    
+    // Verificar permissões específicas por perfil
+    $profile = getUserProfile();
+    
+    // Matriz de permissões por perfil
+    $permissions = [
+        'manager' => ['view', 'edit', 'create'],
+        'operator' => ['view', 'create'],
+        'viewer' => ['view']
+    ];
+    
+    // Verificar se o perfil tem a permissão
+    if (isset($permissions[$profile]) && in_array($action, $permissions[$profile])) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verifica se o usuário atual tem acesso a um módulo
+ * @param string $module Nome do módulo
+ * @return bool Verdadeiro se o usuário tem acesso
+ */
+function userHasAccess($module) {
+    // Se o usuário é admin, tem acesso a tudo
+    if (getUserProfile() === 'admin') {
+        return true;
+    }
+    
+    // Verificar acessos específicos por perfil
+    $profile = getUserProfile();
+    
+    // Matriz de acessos por perfil
+    $access = [
+        'manager' => ['clientes', 'servicos', 'modalidades', 'consultores', 'os', 'relacao'],
+        'operator' => ['clientes', 'os', 'relacao'],
+        'viewer' => ['clientes', 'os', 'relacao']
+    ];
+    
+    // Verificar se o perfil tem acesso ao módulo
+    if (isset($access[$profile]) && in_array($module, $access[$profile])) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Converte data para o formato brasileiro
+ * @param string $date Data no formato americano (YYYY-MM-DD)
+ * @return string Data no formato brasileiro (DD/MM/YYYY)
+ */
+function dateToBr($date) {
+    if (empty($date)) {
+        return '';
+    }
+    
+    // Verificar se já está no formato brasileiro
+    if (strpos($date, '/') !== false) {
+        return $date;
+    }
+    
+    // Converter
+    $timestamp = strtotime($date);
+    if ($timestamp === false) {
+        return $date;
+    }
+    
+    return date('d/m/Y', $timestamp);
+}
+
+/**
+ * Converte data para o formato americano
+ * @param string $date Data no formato brasileiro (DD/MM/YYYY)
+ * @return string Data no formato americano (YYYY-MM-DD)
+ */
+function dateToUs($date) {
+    if (empty($date)) {
+        return '';
+    }
+    
+    // Verificar se já está no formato americano
+    if (strpos($date, '-') !== false) {
+        return $date;
+    }
+    
+    // Verificar formato
+    if (!preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $matches)) {
+        return $date;
+    }
+    
+    // Extrair partes
+    $day = $matches[1];
+    $month = $matches[2];
+    $year = $matches[3];
+    
+    return "$year-$month-$day";
+}

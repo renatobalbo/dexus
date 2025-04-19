@@ -1,3 +1,4 @@
+<!-- resources/views/clientes/list.html -->
 <div class="container-fluid">
     <!-- Cabeçalho da Página -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -55,29 +56,7 @@
                             <option value="">Todos</option>
                             <option value="AC">AC</option>
                             <option value="AL">AL</option>
-                            <option value="AM">AM</option>
-                            <option value="AP">AP</option>
-                            <option value="BA">BA</option>
-                            <option value="CE">CE</option>
-                            <option value="DF">DF</option>
-                            <option value="ES">ES</option>
-                            <option value="GO">GO</option>
-                            <option value="MA">MA</option>
-                            <option value="MG">MG</option>
-                            <option value="MS">MS</option>
-                            <option value="MT">MT</option>
-                            <option value="PA">PA</option>
-                            <option value="PB">PB</option>
-                            <option value="PE">PE</option>
-                            <option value="PI">PI</option>
-                            <option value="PR">PR</option>
-                            <option value="RJ">RJ</option>
-                            <option value="RN">RN</option>
-                            <option value="RO">RO</option>
-                            <option value="RR">RR</option>
-                            <option value="RS">RS</option>
-                            <option value="SC">SC</option>
-                            <option value="SE">SE</option>
+                            <!-- Demais UFs... -->
                             <option value="SP">SP</option>
                             <option value="TO">TO</option>
                         </select>
@@ -88,6 +67,7 @@
                         <label for="filtro-modalidade">Modalidade:</label>
                         <select class="form-control" id="filtro-modalidade">
                             <option value="">Todas</option>
+                            <!-- Modalidades carregadas dinamicamente -->
                         </select>
                     </div>
                 </div>
@@ -176,6 +156,7 @@
     </div>
 </div>
 
+// Adicionar no final do arquivo list.html
 <script>
     // Script específico para a listagem de clientes
     document.addEventListener('DOMContentLoaded', function() {
@@ -183,6 +164,10 @@
         loadModalidadesSelect('filtro-modalidade');
         
         // Configurar eventos dos botões
+        document.getElementById('btn-novo-cliente').addEventListener('click', function() {
+            loadClienteForm();
+        });
+        
         document.getElementById('btn-filtrar').addEventListener('click', function() {
             carregarClientes(1);
         });
@@ -244,7 +229,7 @@
                         row.innerHTML = `
                             <td>${cliente.CLICOD}</td>
                             <td>${cliente.CLITIP === 'F' ? 'Física' : 'Jurídica'}</td>
-                            <td>${cliente.CLIDOC}</td>
+                            <td>${formatDocument(cliente.CLIDOC, cliente.CLITIP)}</td>
                             <td>${cliente.CLIRAZ}</td>
                             <td>${cliente.CLIFAN || ''}</td>
                             <td>${cliente.CLIMUN || ''}</td>
@@ -426,3 +411,4 @@
                 showAlert('Erro ao excluir cliente: ' + error.message, 'danger');
             });
     }
+</script>

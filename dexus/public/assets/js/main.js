@@ -358,3 +358,122 @@ function clearMasks(form) {
         input.value = value;
     });
 }
+
+/**
+ * Carrega o conteúdo de clientes
+ */
+function loadClientesContent() {
+    // Exibir loader
+    const loader = showLoader('Carregando clientes...');
+    
+    // Carregar conteúdo via AJAX
+    fetch('resources/views/clientes/list.html')
+        .then(response => response.text())
+        .then(html => {
+            document.querySelector('main').innerHTML = html;
+            
+            // Inicializar componentes
+            const event = new Event('DOMContentLoaded');
+            document.dispatchEvent(event);
+        })
+        .catch(error => {
+            console.error('Erro ao carregar conteúdo:', error);
+            showAlert('Erro ao carregar conteúdo de clientes', 'danger');
+        })
+        .finally(() => {
+            // Ocultar loader
+            hideLoader(loader);
+        });
+}
+
+/**
+ * Carrega o formulário de cliente
+ * @param {number} id ID do cliente (opcional, para edição)
+ * @param {string} modo Modo de exibição (opcional: 'visualizar', 'editar')
+ */
+function loadClienteForm(id = null, modo = null) {
+    // Exibir loader
+    const loader = showLoader('Carregando formulário...');
+    
+    // Carregar conteúdo via AJAX
+    fetch('resources/views/clientes/form.html')
+        .then(response => response.text())
+        .then(html => {
+            document.querySelector('main').innerHTML = html;
+            
+            // Inicializar formulário
+            const event = new Event('DOMContentLoaded');
+            document.dispatchEvent(event);
+            
+            // Se for edição, carregar dados do cliente
+            if (id) {
+                // Atualizar título
+                document.getElementById('form-title').textContent = 
+                    modo === 'visualizar' ? 'Visualizar Cliente' : 'Editar Cliente';
+                
+                // Carregar dados
+                fetchCliente(id)
+                    .then(response => {
+                        if (response.success) {
+                            preencherFormularioCliente(response.cliente, modo);
+                        } else {
+                            showAlert('Erro ao carregar dados do cliente: ' + response.message, 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        showAlert('Erro ao carregar dados do cliente: ' + error.message, 'danger');
+                    });
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar formulário:', error);
+            showAlert('Erro ao carregar formulário de cliente', 'danger');
+        })
+        .finally(() => {
+            // Ocultar loader
+            hideLoader(loader);
+        });
+}
+
+/**
+ * Preenche o formulário de cliente com dados
+ * @param {object} cliente Dados do cliente
+ * @param {string} modo Modo de exibição (opcional: 'visualizar')
+ */
+function preencherFormularioCliente(cliente, modo) {
+    // Preencher formulário
+    document.getElementById('CLICOD').value = cliente.CLICOD;
+    document.getElementById('CLITIP').value = cliente.CLITIP;
+    document.getElementById('CLIDOC').value = formatDocument(cliente.CLIDOC, cliente.CLITIP);
+    document.getElementById('CLIRAZ').value = cliente.CLIRAZ;
+    document.getElementById('CLIFAN').value = cliente.CLIFAN || '';
+    document.getElementById('CLIMUN').value = cliente.CLIMUN || '';
+    document.getElementById('CLIEST').value = cliente.CLIEST || '';
+    document.getElementById('CLIRES').value = cliente.CLIRES || '';
+    document.getElementById('CLIEOS').value = cliente.CLIEOS || '';
+    document.getElementById('CLIENF').value = cliente.CLIENF || '';
+    document.getElementById('CLIMOD').value = cliente.CLIMOD || '';
+    document.getElementById('MODDES').value = cliente.MODDES || '';
+    
+    // Formatar valor hora
+    if (cliente.CLIVAL) {
+        const valor = parseFloat(cliente.CLIVAL);
+        document.getElementById('CLIVAL').value = valor.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2
+        });
+    }
+    
+    // Se for apenas visualização, desabilitar campos
+    if (modo === 'visualizar') {
+        const inputs = document.querySelectorAll('#form-cliente input, #form-cliente select, #form-cliente button[type="submit"], #form-cliente button[type="reset"]');
+        inputs.forEach(input => {
+            input.disabled = true;
+        });
+    }
+    
+    // Disparar evento change para atualizar máscara de CPF/CNPJ
+    const event = new Event('change');
+    document.getElementById('CLITIP').dispatchEvent(event);
+}

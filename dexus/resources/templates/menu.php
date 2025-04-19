@@ -13,7 +13,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $currentPage === 'clientes' ? 'active' : ''; ?>" href="<?php echo url('clientes'); ?>">
+                <a class="nav-link <?php echo $currentPage === 'clientes' ? 'active' : ''; ?>" href="#" onclick="loadClientesContent(); return false;">
                     <i class="fas fa-users me-2"></i>
                     Clientes
                 </a>
